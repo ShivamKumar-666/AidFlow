@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+    .stat-card { transition: all 0.3s ease; }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+    .freshness-bar { height: 6px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
+    .freshness-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+    .food-card { transition: all 0.3s ease; border: 1px solid #f3f4f6; }
+    .food-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+    .tab-content { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .urgency-badge { animation: pulse 2s ease infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .modal-content { animation: modalPop 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+    @keyframes modalPop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+
+<div class="max-w-6xl mx-auto relative">
+    
+    <!-- Stats Header -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600 text-lg"><i class="fas fa-box-open"></i></div>
+                <div>
+                    <div class="text-2xl font-black text-green-600" id="total-saved">0 kg</div>
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Food Rescued</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 text-lg"><i class="fas fa-clock"></i></div>
+                <div>
+                    <div class="text-2xl font-black text-blue-600" id="stat-available">0</div>
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Available Now</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 text-lg"><i class="fas fa-truck"></i></div>
+                <div>
+                    <div class="text-2xl font-black text-amber-600" id="stat-active">0</div>
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Active Pickups</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 text-lg"><i class="fas fa-check-double"></i></div>
+                <div>
+                    <div class="text-2xl font-black text-purple-600" id="stat-total-claims">0</div>
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Claims</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Greeting -->
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-6 flex justify-between items-center border-l-4 border-green-600 border border-gray-50">
+        <div>
+            <h1 class="text-xl font-bold text-gray-800">👋 Hello, {{ user.username }}</h1>
+            <p class="text-gray-500 text-sm">Ready to save some food today?</p>
+        </div>
+        <span class="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold">{{ user.get_role_display }}</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl shadow-sm overflow-x-auto">
+        <button onclick="switchTab('find')" id="tab-find" class="tab-btn flex-1 px-5 py-4 text-green-600 border-b-2 border-green-600 font-bold hover:bg-green-50 transition whitespace-nowrap text-sm">
+            🔍 Find Food
+        </button>
+        <button onclick="switchTab('pickups')" id="tab-pickups" class="tab-btn flex-1 px-5 py-4 text-gray-500 font-medium hover:bg-green-50 hover:text-green-600 transition whitespace-nowrap text-sm">
+            🚚 Live Pickups
+        </button>
+        <button onclick="switchTab('history')" id="tab-history" class="tab-btn flex-1 px-5 py-4 text-gray-500 font-medium hover:bg-green-50 hover:text-green-600 transition whitespace-nowrap text-sm">
+            📜 History
+        </button>
+        <button onclick="switchTab('profile')" id="tab-profile" class="tab-btn flex-1 px-5 py-4 text-gray-500 font-medium hover:bg-green-50 hover:text-green-600 transition whitespace-nowrap text-sm">
+            👤 Profile
+        </button>
+    </div>
+
+    <!-- FIND FOOD TAB -->
+    <div id="view-find" class="tab-content">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-700 flex items-center gap-2">Available Donations</h2>
+            <div class="space-x-2">
+                <button onclick="loadData()" class="px-3 py-1.5 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <a href="{% url 'map-dashboard' %}" class="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium transition"><i class="fas fa-map"></i> Map View</a>
+            </div>
+        </div>
+        <div id="donations-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <p class="text-gray-500 col-span-2 text-center py-10"><i class="fas fa-spinner fa-spin"></i> Scanning for food...</p>
+        </div>
+    </div>
+
+    <!-- PICKUPS TAB -->
+    <div id="view-pickups" class="tab-content hidden">
+        <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center gap-2">🚚 Your Active Pickups</h2>
+        <div id="pickups-grid" class="space-y-4"></div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="view-history" class="tab-content hidden">
+        <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center gap-2">📦 All Claimed Orders</h2>
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+            <table class="min-w-full leading-normal">
+                <thead>
+                    <tr>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Food Item</th>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Donor</th>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Quantity</th>
+                        <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PROFILE TAB -->
+    <div id="view-profile" class="tab-content hidden">
+        <div class="bg-white rounded-xl shadow-sm p-6 max-w-md mx-auto border border-gray-100">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl text-white font-bold">
+                    {{ user.username|make_list|first|upper }}
+                </div>
+                <h2 class="text-2xl font-bold">{{ user.username }}</h2>
+                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold">{{ user.get_role_display }}</span>
+            </div>
+            
+            <form id="ngoProfileForm" class="space-y-4 border-t pt-4">
+                <h3 class="font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-location-dot text-blue-500"></i> Update HQ Location</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="ngo-lat" name="latitude" value="{{ user.latitude|default:'' }}" class="w-1/2 p-2.5 border rounded-lg bg-gray-50" readonly placeholder="Lat">
+                    <input type="text" id="ngo-lng" name="longitude" value="{{ user.longitude|default:'' }}" class="w-1/2 p-2.5 border rounded-lg bg-gray-50" readonly placeholder="Lng">
+                </div>
+                <button type="button" onclick="getNgoLocation()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-lg transition">
+                    <i class="fas fa-location-crosshairs"></i> Detect My GPS
+                </button>
+                <textarea name="address" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Address">{{ user.address|default:'' }}</textarea>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg">
+                    💾 Save Location
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- Map Modal -->
+<div id="map-modal" class="fixed inset-0 bg-gray-900/70 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+    <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col relative">
+        <button onclick="closeMap()" class="absolute top-4 right-4 z-[9999] bg-white text-red-600 font-bold p-2 rounded-full shadow hover:bg-red-50 transition"><i class="fas fa-times"></i></button>
+        <div class="p-4 border-b bg-gray-50 rounded-t-2xl">
+            <h3 class="text-xl font-bold text-gray-800">🚚 Route to Donor <span class="text-sm font-normal text-gray-500 ml-2">(Blue = You, Red = Donor)</span></h3>
+        </div>
+        <div id="tracking-map" class="flex-grow w-full h-full rounded-b-2xl"></div>
+    </div>
+</div>
+
+<script>
+    let map = null;
+    const currentUsername = "{{ user.username }}"; 
+    const myLat = {{ user.latitude|default:"null" }};
+    const myLng = {{ user.longitude|default:"null" }};
+
+    // --- TABS ---
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`view-${tabName}`).classList.remove('hidden');
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('text-green-600', 'border-b-2', 'border-green-600');
+            btn.classList.add('text-gray-500');
+        });
+        const activeBtn = document.getElementById(`tab-${tabName}`);
+        activeBtn.classList.add('text-green-600', 'border-b-2', 'border-green-600');
+        activeBtn.classList.remove('text-gray-500');
+
+        if(tabName === 'find' || tabName === 'pickups' || tabName === 'history') loadData();
+    }
+
+    // --- HAVERSINE DISTANCE ---
+    function calcDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    // --- DATA LOGIC ---
+    async function loadData() {
+        const gridFind = document.getElementById('donations-grid');
+        const gridPickups = document.getElementById('pickups-grid');
+        const tableHistory = document.getElementById('history-table');
+        let totalKg = 0;
+
+        try {
+            const response = await fetch('/api/donations/list/');
+            const data = await response.json();
+            
+            gridFind.innerHTML = '';
+            gridPickups.innerHTML = '';
+            tableHistory.innerHTML = '';
+
+            let pendingCount = 0;
+            let activeCount = 0;
+            let totalClaims = 0;
+
+            data.forEach(d => {
+                // FIND FOOD (Pending)
+                if (d.status === 'pending') {
+                    pendingCount++;
+                    const score = Math.round(d.freshness_score || 0);
+                    let barColor = score >= 70 ? 'bg-green-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-500';
+                    let labelCls = score >= 70 ? 'bg-green-100 text-green-800' : score >= 40 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800';
+                    
+                    // Urgency badge
+                    let urgency = '';
+                    if (score < 40) urgency = '<span class="urgency-badge text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-bold">🔥 Expires Soon</span>';
+                    else if (score < 60) urgency = '<span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">⏰ Moderate</span>';
+
+                    // Distance
+                    let distStr = '';
+                    if (myLat && myLng && d.lat && d.lng) {
+                        const dist = calcDistance(myLat, myLng, d.lat, d.lng);
+                        distStr = `<span class="text-xs text-blue-600 font-bold"><i class="fas fa-location-dot"></i> ${dist.toFixed(1)} km away</span>`;
+                    }
+
+                    gridFind.innerHTML += `
+                        <div class="food-card bg-white rounded-xl shadow-sm p-5">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-lg text-gray-800">${d.food_name}</h3>
+                                <span class="text-xs px-2.5 py-1 rounded-full font-bold ${labelCls}">${d.freshness_label}</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-2">From: <b>${d.donor_name}</b></p>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="freshness-bar flex-grow"><div class="freshness-bar-fill ${barColor}" style="width: ${score}%"></div></div>
+                                <span class="text-xs font-bold text-gray-500">${score}%</span>
+                            </div>
+                            <p id="explain-${d.id}" class="text-xs text-gray-400 italic mb-3" onclick="loadExplanation(${d.id}, ${JSON.stringify(d).replace(/"/g, '&quot;')})" style="cursor:pointer">
+                                <i class="fas fa-lightbulb text-amber-400"></i> Click for AI analysis
+                            </p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mb-3 text-sm text-gray-600">
+                                <span>📦 ${d.quantity_kg} kg</span>
+                                <span>📍 ${(d.pickup_address || '').substring(0, 40)}...</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                ${urgency} ${distStr}
+                            </div>
+                            <button onclick="claimDonation(${d.id})" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl hover:from-green-700 hover:to-emerald-700 shadow transition">
+                                <i class="fas fa-hand-holding-heart"></i> Claim Donation
+                            </button>
+                        </div>`;
+                }
+                
+                // PICKUPS & HISTORY
+                if (d.status === 'claimed' && d.recipient_details && d.recipient_details.username === currentUsername) {
+                    activeCount++;
+                    totalClaims++;
+                    totalKg += parseFloat(d.quantity_kg);
+                    
+                    const ngoLat = d.recipient_details.latitude; 
+                    const ngoLng = d.recipient_details.longitude; 
+                    const donorLat = d.lat; 
+                    const donorLng = d.lng;
+
+                    let mapBtn = '';
+                    if(ngoLat && ngoLng && donorLat && donorLng) {
+                        mapBtn = `<button onclick="openMap(${ngoLat}, ${ngoLng}, ${donorLat}, ${donorLng}, '${d.donor_name}')" class="bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1 transition border border-blue-200">
+                                    <i class="fas fa-route"></i> Navigate
+                                  </button>`;
+                    } else {
+                        mapBtn = `<span class="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-lg">No GPS</span>`;
+                    }
+
+                    gridPickups.innerHTML += `
+                        <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500 flex flex-col md:flex-row justify-between items-center gap-4 border border-gray-50">
+                            <div>
+                                <h3 class="font-bold text-xl text-gray-800">${d.food_name}</h3>
+                                <p class="text-sm text-gray-500">Donor: <b>${d.donor_name}</b></p>
+                                <p class="text-xs text-gray-400 mt-1">${d.pickup_address}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl font-bold text-green-600">${d.quantity_kg} kg</span>
+                                ${mapBtn}
+                            </div>
+                        </div>`;
+
+                    tableHistory.innerHTML += `
+                        <tr>
+                            <td class="px-5 py-4 border-b border-gray-100 text-sm font-bold text-gray-900">${d.food_name}</td>
+                            <td class="px-5 py-4 border-b border-gray-100 text-sm text-gray-600">${d.donor_name}</td>
+                            <td class="px-5 py-4 border-b border-gray-100 text-sm text-gray-600">${d.quantity_kg} kg</td>
+                            <td class="px-5 py-4 border-b border-gray-100 text-sm"><span class="px-2.5 py-1 font-bold text-green-800 bg-green-100 rounded-full text-xs">✅ Collected</span></td>
+                        </tr>`;
+                }
+            });
+
+            document.getElementById('total-saved').innerText = totalKg.toFixed(1) + " kg";
+            document.getElementById('stat-available').innerText = pendingCount;
+            document.getElementById('stat-active').innerText = activeCount;
+            document.getElementById('stat-total-claims').innerText = totalClaims;
+            
+            if (pendingCount === 0) gridFind.innerHTML = '<div class="col-span-2 text-center py-12"><p class="text-3xl mb-3">🍽️</p><p class="text-gray-500 font-medium">No pending donations found. Check back later!</p></div>';
+            if (activeCount === 0) gridPickups.innerHTML = '<div class="text-center py-12"><p class="text-3xl mb-3">🚚</p><p class="text-gray-500 font-medium">No active pickups. Claim some food first!</p></div>';
+
+        } catch (error) { console.error(error); }
+    }
+
+    // --- CLAIM ---
+    async function claimDonation(id) {
+        if(!confirm("Claim this donation? It will move to your 'Live Pickups'.")) return;
+        
+        try {
+            const response = await fetch(`/api/donations/update/${id}/`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+                body: JSON.stringify({ status: 'claimed' })
+            });
+            
+            if(response.ok) { 
+                showToast("Claimed successfully! Check 'Live Pickups' tab.", "success");
+                switchTab('pickups');
+            } else {
+                showToast("Error claiming donation.", "error");
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // --- MAP ---
+    function openMap(myLat, myLng, targetLat, targetLng, targetName) {
+        document.getElementById('map-modal').classList.remove('hidden');
+        if (!map) {
+            map = L.map('tracking-map');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        }
+        setTimeout(() => { map.invalidateSize(); }, 200);
+        map.eachLayer((layer) => { if (!!layer.toGeoJSON) { map.removeLayer(layer); } });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        L.marker([myLat, myLng]).addTo(map).bindPopup("<b>🏠 You (NGO HQ)</b>").openPopup();
+        var redIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/markers-default/red-2x.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
+        });
+        L.marker([targetLat, targetLng], {icon: redIcon}).addTo(map).bindPopup(`<b>📍 ${targetName}</b><br>Pickup Here`);
+        map.fitBounds(L.latLngBounds([[myLat, myLng], [targetLat, targetLng]]), {padding: [50, 50]});
+    }
+
+    function closeMap() { document.getElementById('map-modal').classList.add('hidden'); }
+
+    // --- NGO PROFILE ---
+    function getNgoLocation() {
+        const btn = document.querySelector('button[onclick="getNgoLocation()"]');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting...';
+        navigator.geolocation.getCurrentPosition(p => {
+            document.getElementById('ngo-lat').value = p.coords.latitude;
+            document.getElementById('ngo-lng').value = p.coords.longitude;
+            btn.innerHTML = '<i class="fas fa-check"></i> Detected!';
+            showToast("GPS location detected!", "success");
+            setTimeout(() => { btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Detect My GPS'; }, 2000);
+        }, () => { showToast("Location access denied", "error"); btn.innerHTML = '<i class="fas fa-location-crosshairs"></i> Detect My GPS'; });
+    }
+
+    document.getElementById('ngoProfileForm').addEventListener('submit', async function(e){
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(this).entries());
+        await fetch('/api/users/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')}, body:JSON.stringify(data)});
+        showToast("Location saved successfully!", "success");
+    });
+
+    // --- SHAP-TO-LANGUAGE EXPLANATION ---
+    async function loadExplanation(donationId, donationData) {
+        const el = document.getElementById(`explain-${donationId}`);
+        if (!el) return;
+        el.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500"></i> <span class="text-blue-600">Loading AI analysis...</span>';
+
+        try {
+            const response = await fetch('/api/genai/explain/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    freshness_label: donationData.freshness_label,
+                    freshness_score: donationData.freshness_score,
+                    confidence: donationData.confidence,
+                    storage_time: donationData.storage_time_hours || 5,
+                    time_since_cooking: donationData.time_since_cooking_hours || 3,
+                    storage_condition: donationData.storage_condition || 'room_temperature',
+                    container_type: donationData.container_type || 'closed',
+                    food_type: donationData.food_type || 'Vegetarian',
+                    moisture_type: donationData.moisture_type || 'dry',
+                    cooking_method: donationData.cooking_method || 'boiled',
+                    texture: donationData.texture || 'firm',
+                    smell: donationData.smell || 'neutral',
+                }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                el.innerHTML = `<i class="fas fa-robot text-green-500"></i> <span class="text-gray-600">${result.explanation}</span>`;
+                el.classList.remove('italic', 'text-gray-400');
+                el.classList.add('text-gray-600');
+            } else {
+                el.innerHTML = '<i class="fas fa-exclamation-triangle text-amber-500"></i> <span class="text-gray-500">Analysis unavailable</span>';
+            }
+        } catch (e) {
+            el.innerHTML = '<i class="fas fa-exclamation-triangle text-amber-500"></i> <span class="text-gray-500">Could not load analysis</span>';
+        }
+    }
+
+    // Initial Load
+    loadData();
+</script>
+{% endblock %}

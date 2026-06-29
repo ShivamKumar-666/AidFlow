@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.black]
+line-length = 120
+target-version = ["py313"]
+include = '\.py$'
+extend-exclude = '''
+/(
+  migrations/
+  ml_service/models/
+  staticfiles/
+  env/
+  venv/
+  .env/
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip = ["migrations", "ml_service/models", "staticfiles", "venv", "env"]
+
+[tool.coverage.run]
+omit = ["*/migrations/*", "*/tests/*", "*/staticfiles/*", "manage.py"]

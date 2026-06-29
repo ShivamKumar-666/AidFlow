@@ -1,0 +1,122 @@
+name: EcoFeast CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  POSTGRES_DB: ecofeast
+  POSTGRES_USER: ecofeast
+  POSTGRES_PASSWORD: ecofeast_test
+  DATABASE_URL: postgresql://ecofeast:ecofeast_test@localhost:5432/ecofeast
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  DEBUG: 'false'
+  SECRET_KEY: ci-fallback-key-do-not-use-in-prod
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ecofeast
+          POSTGRES_USER: ecofeast
+          POSTGRES_PASSWORD: ecofeast_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ecofeast -d ecofeast"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-django pytest-cov flake8 black isort
+
+      - name: Wait for services
+        run: |
+          pg_isready -h localhost -p 5432 -U ecofeast -d ecofeast
+
+      - name: Run Django migrations
+        run: python manage.py migrate --noinput
+
+      - name: Run Django system checks
+        run: python manage.py check
+
+      - name: Run linting (flake8)
+        run: flake8 . --exclude=venv,env,.env,staticfiles,migrations,ml_service/models --max-line-length=120 --ignore=E501
+
+      - name: Run pytest
+        run: |
+          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ecofeast:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run --rm -d --name ecofeast-test \
+            -e DATABASE_URL=sqlite:///test.db \
+            -e DEBUG=1 \
+            -e SECRET_KEY=test \
+            -p 8000:8000 \
+            ecofeast:latest
+          sleep 15
+          curl -f http://localhost:8000/ || exit 1
+          docker stop ecofeast-test
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - name: Deploy to staging (placeholder)
+        run: echo "Deploy to staging would happen here"

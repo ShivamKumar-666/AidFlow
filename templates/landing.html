@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoFeast — AI-Powered Food Rescue Platform</title>
+    <meta name="description" content="EcoFeast uses Machine Learning to predict food freshness and connects donors with NGOs to reduce food waste. Save food, feed lives.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+
+        /* Hero gradient */
+        .hero-gradient {
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 30%, #047857 60%, #059669 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-gradient::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .hero-gradient::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(52, 211, 153, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        /* Floating animation */
+        .float-slow { animation: floatSlow 6s ease-in-out infinite; }
+        .float-med { animation: floatMed 4s ease-in-out infinite; }
+        .float-fast { animation: floatFast 3s ease-in-out infinite; }
+        @keyframes floatSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        @keyframes floatMed { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+        @keyframes floatFast { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* Fade in on scroll */
+        .reveal { opacity: 0; transform: translateY(30px); transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+
+        /* Counter animation */
+        .counter { display: inline-block; }
+
+        /* Glass card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Feature card hover */
+        .feature-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+        }
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            border-color: #10b981;
+        }
+
+        /* Step connector */
+        .step-line { position: relative; }
+        .step-line::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, #10b981, transparent);
+        }
+
+        /* Pulse glow */
+        .pulse-glow {
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+        }
+
+        /* Navbar */
+        .nav-glass {
+            background: rgba(6, 78, 59, 0.85);
+            backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Navbar -->
+    <nav class="nav-glass text-white fixed w-full top-0 z-50 shadow-lg">
+        <div class="container mx-auto p-5 flex justify-between items-center">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-seedling text-green-400"></i> EcoFeast
+            </h1>
+            <div class="flex items-center gap-4">
+                <a href="{% url 'login-ui' %}" class="text-white hover:text-green-300 font-semibold transition hidden sm:inline">Login</a>
+                <a href="{% url 'register-ui' %}" class="bg-white text-green-800 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-green-50 hover:shadow-xl transition transform hover:scale-105">
+                    Get Started <i class="fas fa-arrow-right ml-1 text-sm"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient text-white pt-32 pb-24 md:pb-32 relative">
+        <!-- Floating emojis -->
+        <div class="absolute top-24 left-[10%] text-5xl float-slow opacity-20 select-none">🍎</div>
+        <div class="absolute top-40 right-[15%] text-4xl float-med opacity-20 select-none">🥗</div>
+        <div class="absolute bottom-20 left-[20%] text-3xl float-fast opacity-15 select-none">🍞</div>
+        <div class="absolute top-32 right-[35%] text-4xl float-slow opacity-15 select-none">🥕</div>
+        <div class="absolute bottom-32 right-[10%] text-5xl float-med opacity-15 select-none">🍲</div>
+
+        <div class="container mx-auto px-6 text-center relative z-10">
+            <div class="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/20">
+                <span class="w-2 h-2 bg-green-400 rounded-full pulse-glow"></span> AI-Powered Food Safety
+            </div>
+            <h2 class="text-4xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight tracking-tight">
+                Don't Waste Food.<br>
+                <span class="bg-gradient-to-r from-green-300 via-emerald-300 to-teal-300 bg-clip-text text-transparent">Rescue It With AI.</span>
+            </h2>
+            <p class="text-lg md:text-xl text-green-100/80 mb-10 max-w-2xl mx-auto leading-relaxed">
+                Our Machine Learning model predicts food freshness in real-time. 
+                We connect restaurants and homes with nearby NGOs so no meal goes to waste.
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="{% url 'register-ui' %}" class="bg-white text-green-800 text-lg px-8 py-4 rounded-xl font-bold shadow-xl hover:shadow-2xl hover:bg-green-50 transition transform hover:scale-105 flex items-center justify-center gap-2">
+                    <i class="fas fa-hand-holding-heart"></i> Start Donating
+                </a>
+                <a href="{% url 'register-ui' %}" class="glass-card text-white text-lg px-8 py-4 rounded-xl font-bold hover:bg-white/15 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-building-ngo"></i> I'm an NGO
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Counter Section -->
+    <section class="py-6 bg-white border-b">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div class="reveal">
+                    <div class="text-3xl md:text-4xl font-black text-green-600"><span class="counter" data-target="6500">0</span>+</div>
+                    <p class="text-sm text-gray-500 mt-1 font-medium">Data Points Trained</p>
+                </div>
+                <div class="reveal">
+                    <div class="text-3xl md:text-4xl font-black text-emerald-600"><span class="counter" data-target="91">0</span>%</div>
+                    <p class="text-sm text-gray-500 mt-1 font-medium">AI Accuracy</p>
+                </div>
+                <div class="reveal">
+                    <div class="text-3xl md:text-4xl font-black text-teal-600"><span class="counter" data-target="9">0</span>+</div>
+                    <p class="text-sm text-gray-500 mt-1 font-medium">ML Features Used</p>
+                </div>
+                <div class="reveal">
+                    <div class="text-3xl md:text-4xl font-black text-cyan-600"><span class="counter" data-target="3">0</span></div>
+                    <p class="text-sm text-gray-500 mt-1 font-medium">Freshness Levels</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-20 bg-gray-50">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <span class="text-sm font-bold uppercase tracking-widest text-green-600">How It Works</span>
+                <h3 class="text-3xl md:text-4xl font-black text-gray-900 mt-3">Three Simple Steps</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="text-center reveal">
+                    <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-5 text-3xl text-white shadow-lg shadow-green-200 rotate-3 hover:rotate-0 transition">
+                        📝
+                    </div>
+                    <div class="text-xs font-black text-green-600 uppercase tracking-widest mb-2">Step 1</div>
+                    <h4 class="text-xl font-bold text-gray-900 mb-2">Donor Lists Food</h4>
+                    <p class="text-gray-500">Enter food details — type, quantity, storage condition, smell, and texture.</p>
+                </div>
+                <div class="text-center reveal">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-5 text-3xl text-white shadow-lg shadow-blue-200 -rotate-3 hover:rotate-0 transition">
+                        🤖
+                    </div>
+                    <div class="text-xs font-black text-blue-600 uppercase tracking-widest mb-2">Step 2</div>
+                    <h4 class="text-xl font-bold text-gray-900 mb-2">AI Checks Freshness</h4>
+                    <p class="text-gray-500">Our Random Forest ML model analyzes 9 features and predicts a freshness score (0–100).</p>
+                </div>
+                <div class="text-center reveal">
+                    <div class="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-5 text-3xl text-white shadow-lg shadow-amber-200 rotate-2 hover:rotate-0 transition">
+                        🚚
+                    </div>
+                    <div class="text-xs font-black text-amber-600 uppercase tracking-widest mb-2">Step 3</div>
+                    <h4 class="text-xl font-bold text-gray-900 mb-2">NGO Claims & Delivers</h4>
+                    <p class="text-gray-500">Nearby NGOs see available food on a live map, claim it, and pick it up before it spoils.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <span class="text-sm font-bold uppercase tracking-widest text-green-600">Features</span>
+                <h3 class="text-3xl md:text-4xl font-black text-gray-900 mt-3">Why EcoFeast?</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="feature-card p-8 bg-white rounded-2xl text-center reveal">
+                    <div class="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-blue-600 text-2xl">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">ML Freshness Prediction</h4>
+                    <p class="text-gray-500 text-sm leading-relaxed">Random Forest + XGBoost models trained on 6,500+ data points with 91.85% accuracy.</p>
+                </div>
+                <div class="feature-card p-8 bg-white rounded-2xl text-center reveal">
+                    <div class="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-green-600 text-2xl">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Live Geo-Location Map</h4>
+                    <p class="text-gray-500 text-sm leading-relaxed">Real-time map shows available donations. NGOs can navigate directly to pickup points.</p>
+                </div>
+                <div class="feature-card p-8 bg-white rounded-2xl text-center reveal">
+                    <div class="w-14 h-14 bg-amber-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-amber-600 text-2xl">
+                        <i class="fas fa-cloud-sun"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Weather Integration</h4>
+                    <p class="text-gray-500 text-sm leading-relaxed">Real-time temperature and humidity data factor into freshness predictions for higher accuracy.</p>
+                </div>
+                <div class="feature-card p-8 bg-white rounded-2xl text-center reveal">
+                    <div class="w-14 h-14 bg-purple-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-purple-600 text-2xl">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Food Safety First</h4>
+                    <p class="text-gray-500 text-sm leading-relaxed">Only food scoring above the safe threshold is recommended for donation. AI protects recipients.</p>
+                </div>
+                <div class="feature-card p-8 bg-white rounded-2xl text-center reveal">
+                    <div class="w-14 h-14 bg-rose-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-rose-600 text-2xl">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Real-Time Dashboard</h4>
+                    <p class="text-gray-500 text-sm leading-relaxed">Donors and NGOs get live dashboards with donation history, active pickups, and tracking.</p>
+                </div>
+                <div class="feature-card p-8 bg-white rounded-2xl text-center reveal">
+                    <div class="w-14 h-14 bg-cyan-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-cyan-600 text-2xl">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Multi-Role System</h4>
+                    <p class="text-gray-500 text-sm leading-relaxed">Separate dashboards for Donors, NGOs, Shelters, and Restaurants — each with tailored features.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 hero-gradient text-white relative overflow-hidden">
+        <div class="container mx-auto px-6 text-center relative z-10 reveal">
+            <h3 class="text-3xl md:text-5xl font-black mb-6">Ready to Save Food?</h3>
+            <p class="text-lg text-green-100/80 mb-8 max-w-xl mx-auto">Join EcoFeast today and be part of the AI-driven solution to food waste.</p>
+            <a href="{% url 'register-ui' %}" class="inline-flex items-center gap-2 bg-white text-green-800 text-lg px-10 py-4 rounded-xl font-bold shadow-xl hover:shadow-2xl hover:bg-green-50 transition transform hover:scale-105">
+                Create Free Account <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-10">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-seedling text-green-500 text-xl"></i>
+                    <span class="text-white font-bold text-lg">EcoFeast</span>
+                </div>
+                <div class="flex gap-6 text-sm">
+                    <a href="/" class="hover:text-white transition">Home</a>
+                    <a href="{% url 'login-ui' %}" class="hover:text-white transition">Login</a>
+                    <a href="{% url 'register-ui' %}" class="hover:text-white transition">Sign Up</a>
+                </div>
+                <p class="text-sm text-gray-500">&copy; 2026 EcoFeast. Final Year Project.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Scroll Reveal ---
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealOnScroll = () => {
+            revealElements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.top < window.innerHeight - 80) el.classList.add('visible');
+            });
+        };
+        window.addEventListener('scroll', revealOnScroll);
+        revealOnScroll();
+
+        // --- Animated Counters ---
+        const counters = document.querySelectorAll('.counter');
+        const startCounters = () => {
+            counters.forEach(counter => {
+                const target = +counter.getAttribute('data-target');
+                const duration = 2000;
+                const step = target / (duration / 16);
+                let current = 0;
+                const update = () => {
+                    current += step;
+                    if (current < target) {
+                        counter.innerText = Math.ceil(current);
+                        requestAnimationFrame(update);
+                    } else {
+                        counter.innerText = target;
+                    }
+                };
+                update();
+            });
+        };
+        // Start counters when stats section is visible
+        const statsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) { startCounters(); statsObserver.disconnect(); }
+            });
+        }, { threshold: 0.5 });
+        const statsSection = document.querySelectorAll('.counter')[0];
+        if (statsSection) statsObserver.observe(statsSection.closest('section'));
+    </script>
+</body>
+</html>

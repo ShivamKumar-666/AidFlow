@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+
+<style>
+    .stat-card { transition: all 0.3s ease; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+    .trail-step { border-left: 3px solid #e5e7eb; padding: 8px 0 8px 20px; margin-left: 12px; position: relative; }
+    .trail-step::before { content: ''; position: absolute; left: -8px; top: 10px; width: 14px; height: 14px; border-radius: 50%; background: #9ca3af; border: 3px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .trail-step.intake::before { background: #3b82f6; }
+    .trail-step.verify::before { background: #f59e0b; }
+    .trail-step.match::before { background: #8b5cf6; }
+    .trail-step.logistics::before { background: #10b981; }
+    .trail-step.error::before { background: #ef4444; }
+    .pulse-dot { animation: pulse 2s ease infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .tab-btn { transition: all 0.2s ease; }
+    .score-bar { height: 8px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+</style>
+
+<div class="max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <span class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-lg">🤖</span>
+                Agent Observability Dashboard
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">Real-time pipeline monitoring, decision trails, and analytics</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="loadAll()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold transition">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button onclick="runTestPipeline()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold transition">
+                <i class="fas fa-play"></i> Run Test Pipeline
+            </button>
+        </div>
+    </div>
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-2xl font-black text-purple-600" id="stat-total">0</div>
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Runs</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-2xl font-black text-green-600" id="stat-completed">0</div>
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Completed</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-2xl font-black text-red-600" id="stat-failed">0</div>
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Failed</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-2xl font-black text-amber-600" id="stat-escalations">0</div>
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Escalations</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-2xl font-black text-blue-600" id="stat-avg-score">0%</div>
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Avg Freshness</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-2xl font-black text-cyan-600" id="stat-duration">0s</div>
+            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">Avg Duration</div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Pipeline Status Chart -->
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-3 text-sm"><i class="fas fa-chart-pie text-purple-500"></i> Pipeline Outcomes</h3>
+            <div class="h-48 flex items-center justify-center">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Freshness Distribution -->
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-3 text-sm"><i class="fas fa-chart-bar text-green-500"></i> Freshness Distribution</h3>
+            <div class="h-48 flex items-center justify-center">
+                <canvas id="freshnessChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Agent Performance -->
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-3 text-sm"><i class="fas fa-chart-line text-blue-500"></i> Agent Activity</h3>
+            <div class="h-48 flex items-center justify-center">
+                <canvas id="agentChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline Architecture -->
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-100">
+        <h3 class="font-bold text-gray-800 mb-3 text-sm"><i class="fas fa-project-diagram text-purple-500"></i> LangGraph Pipeline Architecture</h3>
+        <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+            <div class="bg-blue-100 text-blue-800 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2">
+                <i class="fas fa-arrow-right-to-bracket"></i> Intake
+                <span class="text-[10px] bg-blue-200 px-1.5 py-0.5 rounded">ML + SHAP</span>
+            </div>
+            <i class="fas fa-arrow-right text-gray-300"></i>
+            <div class="bg-amber-100 text-amber-800 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2">
+                <i class="fas fa-shield-check"></i> Verify
+                <span class="text-[10px] bg-amber-200 px-1.5 py-0.5 rounded">Anomaly</span>
+            </div>
+            <i class="fas fa-arrow-right text-gray-300"></i>
+            <div class="bg-purple-100 text-purple-800 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2">
+                <i class="fas fa-search"></i> Match
+                <span class="text-[10px] bg-purple-200 px-1.5 py-0.5 rounded">RAG</span>
+            </div>
+            <i class="fas fa-arrow-right text-gray-300"></i>
+            <div class="bg-green-100 text-green-800 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2">
+                <i class="fas fa-truck"></i> Logistics
+                <span class="text-[10px] bg-green-200 px-1.5 py-0.5 rounded">Autonomy</span>
+            </div>
+            <div class="flex items-center gap-1 bg-red-50 text-red-700 px-3 py-2 rounded-xl text-xs font-bold">
+                <i class="fas fa-redo"></i> Self-loop escalation
+            </div>
+        </div>
+    </div>
+
+    <!-- Runs Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800 text-sm"><i class="fas fa-history text-gray-500"></i> Agent Run History</h3>
+            <span class="text-xs text-gray-400" id="run-count">0 runs</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Donation</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Freshness</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">NGO Assigned</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Escalations</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Duration</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Trail</th>
+                    </tr>
+                </thead>
+                <tbody id="runs-table" class="divide-y divide-gray-50"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Detail Modal -->
+<div id="detail-modal" class="fixed inset-0 bg-gray-900/70 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4 fade-in">
+        <div class="p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Agent Decision Trail</h3>
+                    <p class="text-sm text-gray-500" id="detail-subtitle"></p>
+                </div>
+                <button onclick="closeDetail()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div id="detail-content" class="p-6"></div>
+    </div>
+</div>
+
+<script>
+    let allRuns = [];
+    let statusChart, freshnessChart, agentChart;
+
+    // --- Load All Data ---
+    async function loadAll() {
+        try {
+            const res = await fetch('/api/agents/runs/');
+            const data = await res.json();
+            allRuns = data.runs || [];
+            updateStats();
+            updateCharts();
+            renderTable();
+        } catch (e) { console.error(e); }
+    }
+
+    // --- Update Stats ---
+    function updateStats() {
+        document.getElementById('stat-total').innerText = allRuns.length;
+        document.getElementById('stat-completed').innerText = allRuns.filter(r => r.status === 'complete').length;
+        document.getElementById('stat-failed').innerText = allRuns.filter(r => r.status === 'failed').length;
+        document.getElementById('stat-escalations').innerText = allRuns.reduce((s, r) => s + r.escalations, 0);
+
+        const scores = allRuns.filter(r => r.ml_score).map(r => r.ml_score);
+        const avgScore = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(0) : 0;
+        document.getElementById('stat-avg-score').innerText = avgScore + '%';
+
+        const durations = allRuns.filter(r => r.duration_seconds).map(r => r.duration_seconds);
+        const avgDur = durations.length ? (durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(1) : 0;
+        document.getElementById('stat-duration').innerText = avgDur + 's';
+
+        document.getElementById('run-count').innerText = allRuns.length + ' runs';
+    }
+
+    // --- Update Charts ---
+    function updateCharts() {
+        // Status Pie Chart
+        const statusCounts = { complete: 0, failed: 0, escalating: 0, other: 0 };
+        allRuns.forEach(r => {
+            if (statusCounts.hasOwnProperty(r.status)) statusCounts[r.status]++;
+            else statusCounts.other++;
+        });
+
+        if (statusChart) statusChart.destroy();
+        statusChart = new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Failed', 'Escalating'],
+                datasets: [{
+                    data: [statusCounts.complete, statusCounts.failed, statusCounts.escalating],
+                    backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+                    borderWidth: 0,
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } } } }
+        });
+
+        // Freshness Bar Chart
+        const freshnessBuckets = { 'Fresh (70+)': 0, 'Medium (40-69)': 0, 'Low (<40)': 0 };
+        allRuns.forEach(r => {
+            if (r.ml_score >= 70) freshnessBuckets['Fresh (70+)']++;
+            else if (r.ml_score >= 40) freshnessBuckets['Medium (40-69)']++;
+            else freshnessBuckets['Low (<40)']++;
+        });
+
+        if (freshnessChart) freshnessChart.destroy();
+        freshnessChart = new Chart(document.getElementById('freshnessChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(freshnessBuckets),
+                datasets: [{
+                    data: Object.values(freshnessBuckets),
+                    backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                    borderRadius: 6,
+                    borderWidth: 0,
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+
+        // Agent Activity Chart
+        const agentCounts = { intake: 0, verification: 0, matching: 0, logistics: 0 };
+        allRuns.forEach(r => {
+            (r.decision_trail || []).forEach(step => {
+                if (agentCounts.hasOwnProperty(step.agent)) agentCounts[step.agent]++;
+            });
+        });
+
+        if (agentChart) agentChart.destroy();
+        agentChart = new Chart(document.getElementById('agentChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Intake', 'Verify', 'Match', 'Logistics'],
+                datasets: [{
+                    data: Object.values(agentCounts),
+                    backgroundColor: ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981'],
+                    borderRadius: 6,
+                    borderWidth: 0,
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+    }
+
+    // --- Render Table ---
+    function renderTable() {
+        const tbody = document.getElementById('runs-table');
+        if (allRuns.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-gray-400"><p class="text-3xl mb-3">🤖</p>No agent runs yet. Click "Run Test Pipeline" to start.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = allRuns.map(run => {
+            const statusMap = {
+                'complete': { badge: 'Completed', cls: 'bg-green-100 text-green-800', icon: 'fa-check-circle' },
+                'failed': { badge: 'Failed', cls: 'bg-red-100 text-red-800', icon: 'fa-times-circle' },
+                'escalating': { badge: 'Escalating', cls: 'bg-amber-100 text-amber-800', icon: 'fa-redo' },
+            };
+            const st = statusMap[run.status] || { badge: run.status, cls: 'bg-gray-100 text-gray-800', icon: 'fa-circle' };
+
+            const score = Math.round(run.ml_score || 0);
+            let scoreColor = 'text-green-600';
+            let barColor = 'bg-green-500';
+            if (score < 70) { scoreColor = 'text-amber-600'; barColor = 'bg-amber-500'; }
+            if (score < 40) { scoreColor = 'text-red-600'; barColor = 'bg-red-500'; }
+
+            const trailSteps = (run.decision_trail || []).length;
+
+            return `
+            <tr class="hover:bg-gray-50 transition cursor-pointer" onclick="showDetail(${run.id})">
+                <td class="px-4 py-3">
+                    <div class="font-bold text-sm text-gray-800">${run.donation_name || 'Donation #' + run.donation_id}</div>
+                    <div class="text-xs text-gray-400">${run.started_at ? new Date(run.started_at).toLocaleString() : ''}</div>
+                </td>
+                <td class="px-4 py-3"><span class="px-2.5 py-1 ${st.cls} text-xs rounded-full font-bold inline-flex items-center gap-1"><i class="fas ${st.icon} text-[10px]"></i> ${st.badge}</span></td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <div class="score-bar w-20"><div class="score-bar-fill ${barColor}" style="width:${score}%"></div></div>
+                        <span class="text-sm font-bold ${scoreColor}">${score}%</span>
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-sm font-bold text-gray-700">${run.final_ngo || '<span class="text-gray-400">None</span>'}</td>
+                <td class="px-4 py-3">${run.escalations > 0 ? `<span class="px-2 py-0.5 bg-orange-100 text-orange-800 text-xs rounded-full font-bold">${run.escalations}</span>` : '<span class="text-gray-300">0</span>'}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">${run.duration_seconds ? run.duration_seconds.toFixed(1) + 's' : '-'}</td>
+                <td class="px-4 py-3">
+                    <button class="text-purple-600 hover:text-purple-800 text-xs font-bold flex items-center gap-1" onclick="event.stopPropagation(); showDetail(${run.id})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // --- Show Detail Modal ---
+    function showDetail(runId) {
+        const run = allRuns.find(r => r.id === runId);
+        if (!run) return;
+
+        document.getElementById('detail-subtitle').textContent = `${run.donation_name || 'Donation #' + run.donation_id} — ${run.status.toUpperCase()}`;
+
+        const agentConfig = {
+            'intake': { icon: 'fa-arrow-right-to-bracket', color: 'blue', label: 'Intake Agent', desc: 'ML prediction + SHAP explanation' },
+            'verification': { icon: 'fa-shield-check', color: 'amber', label: 'Verification Agent', desc: 'Plausibility checks' },
+            'matching': { icon: 'fa-search', color: 'purple', label: 'Matching Agent', desc: 'RAG semantic matching' },
+            'logistics': { icon: 'fa-truck', color: 'green', label: 'Logistics Agent', desc: 'Claim offers + escalation' },
+        };
+
+        let html = '';
+
+        // Summary cards
+        html += `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">`;
+        html += `<div class="bg-blue-50 rounded-xl p-3 text-center"><div class="text-lg font-black text-blue-600">${Math.round(run.ml_score || 0)}%</div><div class="text-[10px] font-bold text-blue-400 uppercase">Freshness</div></div>`;
+        html += `<div class="bg-green-50 rounded-xl p-3 text-center"><div class="text-lg font-black text-green-600">${run.final_ngo || 'None'}</div><div class="text-[10px] font-bold text-green-400 uppercase">Assigned NGO</div></div>`;
+        html += `<div class="bg-amber-50 rounded-xl p-3 text-center"><div class="text-lg font-black text-amber-600">${run.escalations}</div><div class="text-[10px] font-bold text-amber-400 uppercase">Escalations</div></div>`;
+        html += `<div class="bg-purple-50 rounded-xl p-3 text-center"><div class="text-lg font-black text-purple-600">${(run.decision_trail || []).length}</div><div class="text-[10px] font-bold text-purple-400 uppercase">Pipeline Steps</div></div>`;
+        html += `</div>`;
+
+        // Timeline
+        html += `<h4 class="font-bold text-gray-800 mb-4 text-sm"><i class="fas fa-stream text-purple-500"></i> Decision Trail Timeline</h4>`;
+        html += `<div class="space-y-1">`;
+
+        (run.decision_trail || []).forEach((step, i) => {
+            const cfg = agentConfig[step.agent] || { icon: 'fa-circle', color: 'gray', label: step.agent, desc: '' };
+            const hasError = step.error || (step.anomalies && step.anomalies.length > 0);
+
+            html += `
+            <div class="trail-step ${step.agent}">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-${cfg.color}-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i class="fas ${cfg.icon} text-${cfg.color}-600 text-sm"></i>
+                    </div>
+                    <div class="flex-grow min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-bold text-gray-800 text-sm">${cfg.label}</span>
+                            <span class="text-[10px] text-gray-400">${step.timestamp ? new Date(step.timestamp).toLocaleTimeString() : ''}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-0.5">${cfg.desc}</p>
+                        ${step.result ? `<div class="mt-2 bg-gray-50 rounded-lg p-2 text-xs font-mono text-gray-600 overflow-x-auto">${formatJson(step.result)}</div>` : ''}
+                        ${step.anomalies && step.anomalies.length ? `<div class="mt-2 space-y-1">${step.anomalies.map(a => `<div class="text-xs bg-red-50 text-red-700 px-2 py-1 rounded flex items-center gap-1"><i class="fas fa-exclamation-triangle text-[10px]"></i> ${a}</div>`).join('')}</div>` : ''}
+                        ${step.notes && step.notes.length ? `<div class="mt-2 space-y-1">${step.notes.map(n => `<div class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">${n}</div>`).join('')}</div>` : ''}
+                        ${step.error ? `<div class="mt-2 text-xs bg-red-50 text-red-700 px-2 py-1 rounded"><i class="fas fa-exclamation-triangle"></i> ${step.error}</div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        html += `</div>`;
+
+        document.getElementById('detail-content').innerHTML = html;
+        document.getElementById('detail-modal').classList.remove('hidden');
+    }
+
+    function formatJson(obj) {
+        try {
+            return '<pre class="whitespace-pre-wrap">' + JSON.stringify(obj, null, 2) + '</pre>';
+        } catch { return String(obj); }
+    }
+
+    function closeDetail() {
+        document.getElementById('detail-modal').classList.add('hidden');
+    }
+
+    // --- Run Test Pipeline ---
+    async function runTestPipeline() {
+        showToast("Running test pipeline...", "info");
+        try {
+            const res = await fetch('/api/agents/run/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify({
+                    food_name: "Test Biryani", food_type: "Non-Vegetarian", quantity_kg: 10,
+                    storage_time_hours: 3, time_since_cooking_hours: 2, storage_condition: "refrigerated",
+                    container_type: "metal", moisture_type: "wet", cooking_method: "steamed",
+                    texture: "firm", smell: "neutral", pickup_address: "Mumbai",
+                    latitude: 19.0760, longitude: 72.8777,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`Pipeline complete: ${data.pipeline_status} — ${data.assigned_ngo || 'No NGO assigned'}`, data.pipeline_status === 'complete' ? 'success' : 'warning');
+                loadAll();
+            } else {
+                showToast("Error: " + data.error, "error");
+            }
+        } catch (e) { showToast("Network error", "error"); }
+    }
+
+    // Init
+    loadAll();
+</script>
+{% endblock %}

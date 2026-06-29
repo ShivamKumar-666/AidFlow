@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+    .legend-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    .legend-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .map-stat { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9fafb; border-radius: 10px; }
+</style>
+
+<div class="flex flex-col lg:flex-row gap-4">
+    <!-- Sidebar -->
+    <div class="lg:w-72 space-y-4">
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-green-600"></i> Map Overview</h3>
+            <div class="space-y-3">
+                <div class="map-stat">
+                    <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-600"><i class="fas fa-utensils"></i></div>
+                    <div>
+                        <div class="text-lg font-black text-gray-800" id="map-count">0</div>
+                        <div class="text-xs text-gray-500 font-medium">Available Donations</div>
+                    </div>
+                </div>
+                <div class="map-stat">
+                    <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600"><i class="fas fa-weight-hanging"></i></div>
+                    <div>
+                        <div class="text-lg font-black text-gray-800" id="map-total-kg">0 kg</div>
+                        <div class="text-xs text-gray-500 font-medium">Total Available</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-circle-info text-blue-500"></i> Legend</h3>
+            <div class="legend-item"><div class="legend-dot" style="background: #22c55e;"></div><span class="text-sm text-gray-600">Fresh (≥70%)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background: #f59e0b;"></div><span class="text-sm text-gray-600">Moderate (40-69%)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background: #ef4444;"></div><span class="text-sm text-gray-600">Risky (&lt;40%)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background: #3b82f6;"></div><span class="text-sm text-gray-600">You (NGO HQ)</span></div>
+        </div>
+
+        <a href="{% url 'ngo-dashboard-ui' %}" class="block bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-4 rounded-xl transition text-center text-sm">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Map -->
+    <div class="flex-grow">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">🗺️ Live Food Map</h2>
+            <button onclick="location.reload()" class="px-3 py-1.5 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div id="map" class="w-full h-[600px] rounded-2xl shadow-lg border border-gray-200"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    async function initMap() {
+        const myLat = {{ user.latitude|default:"19.0760" }};
+        const myLng = {{ user.longitude|default:"72.8777" }};
+
+        var map = L.map('map').setView([myLat, myLng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // You marker (Blue, bigger)
+        var homeIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/markers-default/blue-2x.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [40, 65], iconAnchor: [20, 65], popupAnchor: [1, -60], shadowSize: [65, 65]
+        });
+
+        L.marker([myLat, myLng], {icon: homeIcon}).addTo(map)
+            .bindPopup("<b>🏠 YOU (NGO HQ)</b><br>Start here")
+            .openPopup();
+
+        // Food icons
+        const iconSize = [35, 55];
+        const iconAnchor = [17, 55];
+        const popupAnchor = [1, -50];
+
+        var freshIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/markers-default/green-2x.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: iconSize, iconAnchor: iconAnchor, popupAnchor: popupAnchor, shadowSize: [55, 55]
+        });
+
+        var riskyIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/markers-default/red-2x.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: iconSize, iconAnchor: iconAnchor, popupAnchor: popupAnchor, shadowSize: [55, 55]
+        });
+
+        var mediumIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/markers-default/gold-2x.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: iconSize, iconAnchor: iconAnchor, popupAnchor: popupAnchor, shadowSize: [55, 55]
+        });
+
+        // Haversine distance
+        function calcDist(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        try {
+            const response = await fetch('/api/donations/list/');
+            const donations = await response.json();
+            
+            let count = 0;
+            let totalKg = 0;
+            const bounds = [[myLat, myLng]];
+
+            donations.forEach(d => {
+                if (d.lat && d.lng && d.status === 'pending') {
+                    count++;
+                    totalKg += parseFloat(d.quantity_kg || 0);
+                    bounds.push([d.lat, d.lng]);
+                    
+                    let iconToUse = riskyIcon;
+                    if (d.freshness_score >= 70) iconToUse = freshIcon;
+                    else if (d.freshness_score >= 40) iconToUse = mediumIcon;
+
+                    const dist = calcDist(myLat, myLng, d.lat, d.lng).toFixed(1);
+                    const score = Math.round(d.freshness_score || 0);
+                    const barColor = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444';
+
+                    const popupContent = `
+                        <div style="min-width:200px; font-family: Inter, sans-serif;">
+                            <h3 style="font-weight:800; font-size:16px; margin:0 0 6px; color:#111827;">${d.food_name}</h3>
+                            <div style="font-size:13px; color:#6b7280; margin-bottom:8px;">
+                                <p>📦 <b>${d.quantity_kg} kg</b> from ${d.donor_name}</p>
+                                <p>📍 ${dist} km away</p>
+                            </div>
+                            <div style="background:#e5e7eb; height:6px; border-radius:99px; margin-bottom:6px;">
+                                <div style="background:${barColor}; height:6px; border-radius:99px; width:${score}%;"></div>
+                            </div>
+                            <p style="font-size:12px; color:#6b7280; margin-bottom:8px;">${d.freshness_label} (${score}%)</p>
+                            <button onclick="claimDonation(${d.id})" style="width:100%; background:linear-gradient(135deg,#059669,#047857); color:white; font-size:13px; font-weight:700; padding:8px; border:none; border-radius:8px; cursor:pointer;">
+                                <i class="fas fa-hand-holding-heart"></i> Claim Now
+                            </button>
+                        </div>
+                    `;
+
+                    L.marker([d.lat, d.lng], {icon: iconToUse}).addTo(map).bindPopup(popupContent);
+                }
+            });
+
+            document.getElementById('map-count').innerText = count;
+            document.getElementById('map-total-kg').innerText = totalKg.toFixed(1) + ' kg';
+            
+            // Auto-zoom to fit all markers
+            if (bounds.length > 1) {
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+            }
+
+        } catch (error) {
+            console.error("Map Error:", error);
+        }
+    }
+
+    async function claimDonation(id) {
+        if(!confirm("Pick up this order?")) return;
+        const response = await fetch(`/api/donations/update/${id}/`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({ status: 'claimed' })
+        });
+        if(response.ok) { showToast("Claimed successfully!", "success"); location.reload(); }
+    }
+
+    initMap();
+</script>
+{% endblock %}

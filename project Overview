@@ -1,0 +1,188 @@
+# EcoFeast 2.0 — Project Overview
+
+**EcoFeast** is an autonomous, multi-agent food-rescue orchestration system built on top of Django. It integrates classical Machine Learning (XGBoost + SHAP), GenAI (Llama 3/4 via Groq), RAG (SentenceTransformers + Qdrant), and Agentic AI (LangGraph orchestrator) to coordinate food redistribution from donors to NGOs.
+
+---
+
+## 🏗️ Technical Architecture
+
+The following diagram illustrates the flow of a donation request from intake to fulfillment, highlighting the interactions between different layers and agent modules:
+
+```mermaid
+graph TD
+    %% Entry points
+    Donor[Donor User] -->|1. Image upload / Chat text / Manual Form| Django[Django Backend API]
+    
+    %% GenAI / ML Intake
+    Django -->|2. Route to Appopriate Service| IntakeRoute{Intake Router}
+    IntakeRoute -->|Vision Upload| VisionSvc[GenAI Service: Vision Intake<br/>Llama Vision via Groq]
+    IntakeRoute -->|Free-text description| ChatSvc[GenAI Service: Chat Intake<br/>Llama 3.3 70B JSON mode]
+    IntakeRoute -->|Form submission| MLPredictor[ML Service: XGBoost Predictor]
+    
+    VisionSvc -->|Auto-populate form| DonorConfirm[Donor Confirmation]
+    ChatSvc -->|Auto-populate form| DonorConfirm
+    DonorConfirm -->|Submit| MLPredictor
+    
+    %% ML Pipeline
+    MLPredictor -->|Extract features via FeatureBuilder| XGB[XGBoost Model]
+    MLPredictor -->|Analyze features| SHAP[SHAP Explainer]
+    SHAP -->|SHAP contributions| LlamaExplain[GenAI Explainer<br/>SHAP to text via LLM]
+    
+    %% LangGraph Orchestration
+    LlamaExplain -->|3. Trigger agent pipeline| Orchestrator[LangGraph Orchestrator]
+    
+    subgraph LangGraph StateMachine [LangGraph Orchestrator]
+        IntakeAgent[Intake Agent<br/>Collects & normalizes data]
+        VerifyAgent[Verification Agent<br/>Performs anomaly detection]
+        MatchAgent[Matching Agent<br/>Invokes RAG matcher]
+        LogisticsAgent[Logistics Agent<br/>Coordinates claims & escalations]
+        
+        IntakeAgent --> VerifyAgent
+        VerifyAgent -->|Valid?| MatchAgent
+        VerifyAgent -->|Invalid| EndFailed[End: Run Failed]
+        MatchAgent --> LogisticsAgent
+        LogisticsAgent -->|Accepted?| EndSuccess[End: Run Completed]
+        LogisticsAgent -->|Timeout / Rejected?| LogisticsAgent
+    end
+    
+    %% RAG Service
+    MatchAgent -->|4. Request candidates| RAGMatcher[RAG Service: NGO Matcher]
+    RAGMatcher -->|Cosine similarity search| Qdrant[(Qdrant Vector DB)]
+    RAGMatcher -->|Weighted re-ranking| RAGRank[Combined Score:<br/>Semantic match + Distance + Capacity + Reliability]
+    RAGRank -->|Ranked list of NGOs| MatchAgent
+    
+    %% Qdrant Sync
+    NGOAdmin[NGO Capability Doc] -->|Embed via SentenceTransformers| Qdrant
+    
+    %% DB & Frontend
+    Orchestrator -->|5. Save execution results| AgentRunDB[(PostgreSQL Database)]
+    AgentRunDB -->|6. Query status / logs| Observability[Observability Dashboard<br/>Django + Chart.js]
+```
+
+---
+
+## 📁 Project Structure
+
+Below is the layout of the primary components of the project:
+
+```bash
+EcoFeast/
+├── manage.py              # Django command line utility
+├── requirements.txt       # Project dependencies
+├── pyproject.toml         # Packaging configuration
+├── Dockerfile             # Multi-stage production container
+├── docker-compose.yml     # Local services orchestrator (Postgres, Redis, Qdrant, Web)
+│
+├── config/                # Project Configuration
+│   ├── settings.py        # Django settings (configured for Postgres/SQLite & environment variables)
+│   ├── urls.py            # Global URL routing
+│   └── wsgi.py            # WSGI entrance
+│
+├── donations/             # Core Donation App
+│   ├── models.py          # Donation & AgentRun schemas
+│   ├── views.py           # Core views & Django REST API views
+│   └── serializers.py     # DRF serializers
+│
+├── users/                 # Custom User App
+│   ├── models.py          # CustomUser with role (Donor/NGO/Shelter) & NGO capability profile
+│   ├── views.py           # Authentication & profile endpoints
+│   └── serializers.py     # CustomUser serializers
+│
+├── ml_service/            # Classical ML (XGBoost + SHAP)
+│   ├── feature_builder.py # Common FeatureBuilder to prevent train/serve skew
+│   ├── trainer.py         # XGBoost classifier training pipeline
+│   ├── predictor.py       # Inference endpoint
+│   ├── explainer.py       # SHAP explanation extraction
+│   ├── evaluate.py        # Precision, recall, ROC-AUC, confusion matrix evaluation
+│   └── models/            # Serialized models & metrics
+│
+├── genai_service/         # Generative AI (Groq LLM / Vision)
+│   ├── config.py          # Groq API client config
+│   ├── vision_intake.py   # Llama Vision parsing of food photographs
+│   ├── chat_intake.py     # Llama 3 JSON-mode parsing of natural language descriptions
+│   └── explainer_llm.py   # Translator mapping SHAP values to human-friendly text
+│
+├── rag_service/           # Retrieval-Augmented Generation (Qdrant + embeddings)
+│   ├── ngo_embeddings.py  # Embedding NGO capability documents with SentenceTransformers into Qdrant
+│   ├── matcher.py         # Haversine distance, capacity, & reliability weighted semantic NGO matcher
+│   └── views.py           # Embedding sync & matching test views
+│
+├── agents/                # Agentic Orchestration (LangGraph)
+│   ├── state.py           # TypedDict schema defining global pipeline state (DonationState)
+│   ├── intake_agent.py    # Intake node: normalizes metadata and calls ML freshness model
+│   ├── verification_agent.py # Verification node: validates values and runs anomaly detection rules
+│   ├── matching_agent.py  # Matching node: calls semantic RAG matcher and returns candidates
+│   ├── logistics_agent.py # Logistics node: simulates claim offer, acceptance, and timeout-based escalation
+│   ├── orchestrator.py    # StateGraph compilation, wiring, and pipeline execution
+│   └── views.py           # API views and dashboard endpoints
+│
+├── templates/             # HTML Templates
+│   ├── base.html          # Shared layout with Tailwind CSS
+│   ├── donor_dashboard.html # Interface for submitting donations and viewing listings
+│   ├── ngo_dashboard.html   # Interface for NGOs to claim and manage collections
+│   └── agent_dashboard.html # Interactive observability dashboard (decision trails, Chart.js graphs)
+│
+└── tests/                 # Comprehensive Pytest Suite
+    ├── conftest.py        # Shared test fixtures (Mock APIs, test DB configuration)
+    ├── test_models.py     # Model validation tests
+    ├── test_ml_service.py # ML training/inference sanity tests
+    ├── test_genai_service.py # Mocked LLM intake/explainer tests
+    ├── test_rag_service.py # Qdrant mock vector search tests
+    └── test_agents.py     # LangGraph state transition and routing tests
+```
+
+---
+
+## 🛠️ Tech Stack & Key Layers
+
+### 1. The Classical ML Layer (`ml_service/`)
+* **Objective:** Predict the freshness of food items based on time elapsed, sensory attributes (smell, texture, moisture), and environmental factors.
+* **Model:** XGBoost Classifier (`mlogloss` objective for multi-class classification) saving to `freshness_xgb_v1.json`.
+* **Explainability:** SHAP explainer returns the top contributing features, explaining *why* a particular freshness score was predicted.
+* **Train-Serve Consistency:** A shared `FeatureBuilder` handles scaling, categorical encoding, and feature extraction for both training (`trainer.py`) and inference (`predictor.py`), avoiding train/serve skew.
+
+### 2. The GenAI Layer (`genai_service/`)
+* **Conversational Chat Intake:** Parses natural language descriptions (e.g., *"Leftover paneer curry from lunch, refrigerated since 2 PM in plastic containers, around 8kg"*) using Groq Llama 3 70B in JSON mode, mapping them to structured form fields.
+* **Vision Intake:** Leverages Groq's multimodal Llama Vision model to analyze photos of food, predicting the food type, container type, moisture, and estimating quantity.
+* **Natural Language Explanation:** Translates raw SHAP contribution coefficients (e.g. `{"storage_time": -0.18, "smell_score": -0.12}`) into intuitive sentences for NGOs (e.g., *"Fresh — minimal storage delay, refrigerated condition, low-risk food category"*).
+
+### 3. The RAG Semantic Matching Layer (`rag_service/`)
+* **Profile Generation:** NGOs maintain a free-text profile (`capability_document`) compiled from operating hours, capacity in kilograms, dietary guidelines (halal, veg, kosher), and location.
+* **Vector Store:** Embeddings are generated using SentenceTransformers (`all-MiniLM-L6-v2`) and indexed inside Qdrant.
+* **Weighted Re-ranking:** Re-ranks the semantically matched candidates by combining:
+  1. **Semantic Similarity Score (40%)**: Match between donation properties and NGO constraints.
+  2. **Geographical Score (25%)**: Distance calculated via the Haversine formula (closer = higher score).
+  3. **Capacity Score (15%)**: Suitability of NGO storage capacity for the donation size.
+  4. **Reliability Score (20%)**: Historical pickup acceptance rate (0-100%).
+
+### 4. Agentic Orchestration (`agents/`)
+* **State Machine:** Governed by LangGraph. It manages the `DonationState` dictionary as it transitions across nodes.
+* **Intake Node:** Preprocesses inputs and runs the ML model to populate freshness score and SHAP.
+* **Verification Node:** Performs rule-based safety checks. If anomalies (e.g., excessive quantity, food older than 48 hours, foul smell) are flagged, it marks the donation invalid, stopping the pipeline.
+* **Matching Node:** Calls the RAG matcher to retrieve a sorted candidate list.
+* **Logistics Node (Escalation):** Coordinates the claim offer. It simulates sending a notification to the top-ranked NGO. If rejected or timed out, it updates `current_ngo_index` and loops back, escalating to the next best-fit NGO.
+* **Decision Trail Logging:** Generates a full audit trail (persisted in Postgres as `AgentRun` rows) detail-logging every action, anomaly, escalation, and matching metric for ultimate transparency.
+
+---
+
+## 📈 Observability & Dashboard
+
+The dashboard (`agent_dashboard.html`) renders:
+* **Global Metrics:** Total runs, completed/failed pipelines, average freshness, average duration, and total escalations.
+* **Outcome Charts:** Doughnut charts tracking pipeline outcomes (Complete, Failed, Escalating) and bar charts of freshness distributions.
+* **LangGraph Flow:** Interactive rendering of the active nodes.
+* **Step-by-step Decision Trail:** A detailed, chronological view of what each agent did, including input parameters, classification outputs, validation notes, RAG candidate scores, and simulated logistics decisions.
+
+---
+
+## 🧪 Verification Plan
+The test suite utilizes `pytest` to guarantee the stability of state transitions and data transformations. **As of the latest build, the entire suite of 90+ tests passes successfully with full CI integration.**
+
+* **`test_models.py`**: Ensures CustomUser capability document auto-generation and Donation properties work.
+* **`test_ml_service.py`**: Verifies that the FeatureBuilder transforms datasets properly, the XGBoost model outputs correct classes, and SHAP explainer runs.
+* **`test_genai_service.py`**: Mocks the Groq API client to verify correct parsing of vision and chat json outputs.
+* **`test_rag_service.py`**: Mocks Qdrant client to ensure collections are verified, upserted, and matched.
+* **`test_agents.py`**: Validates the StateGraph, verifying that:
+  1. Valid donations successfully reach the logistics node.
+  2. Spoiled food fails verification and ends the pipeline at `verify`.
+  3. Unresponsive NGOs trigger autonomous escalation to the next best candidate.
