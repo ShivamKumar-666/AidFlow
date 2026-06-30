@@ -1,0 +1,54 @@
+{
+  "accuracy": 0.9246153846153846,
+  "roc_auc_weighted": 0.9879908820167326,
+  "per_class": {
+    "Fresh": {
+      "precision": 0.9353233830845771,
+      "recall": 0.8584474885844748,
+      "f1-score": 0.8952380952380953,
+      "support": 219
+    },
+    "Medium": {
+      "precision": 0.8681318681318682,
+      "recall": 0.9122401847575058,
+      "f1-score": 0.8896396396396397,
+      "support": 433
+    },
+    "Spoiled": {
+      "precision": 0.9611801242236024,
+      "recall": 0.9552469135802469,
+      "f1-score": 0.958204334365325,
+      "support": 648
+    }
+  },
+  "confusion_matrix": [
+    [
+      188,
+      31,
+      0
+    ],
+    [
+      13,
+      395,
+      25
+    ],
+    [
+      0,
+      29,
+      619
+    ]
+  ],
+  "train_samples": 5200,
+  "test_samples": 1300,
+  "features": [
+    "storage_time",
+    "time_since_cooking",
+    "storage_condition_encoded",
+    "container_type_encoded",
+    "food_type_encoded",
+    "moisture_type_encoded",
+    "cooking_method_encoded",
+    "texture_encoded",
+    "smell_encoded"
+  ]
+}
