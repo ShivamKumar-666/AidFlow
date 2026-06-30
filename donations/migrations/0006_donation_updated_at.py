@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('donations', '0005_alter_agentrun_donation'),
+        ("donations", "0005_alter_agentrun_donation"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='donation',
-            name='updated_at',
+            model_name="donation",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

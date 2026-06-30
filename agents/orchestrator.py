@@ -4,15 +4,16 @@ Handles conditional routing and autonomous escalation.
 """
 
 import logging
-from django.utils import timezone
 from typing import Literal
-from langgraph.graph import StateGraph, END
 
-from .state import DonationState
+from django.utils import timezone
+from langgraph.graph import END, StateGraph
+
 from .intake_agent import intake_agent
-from .verification_agent import verification_agent
-from .matching_agent import matching_agent
 from .logistics_agent import logistics_agent
+from .matching_agent import matching_agent
+from .state import DonationState
+from .verification_agent import verification_agent
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,6 @@ def run_pipeline(donation_data: dict) -> dict:
         "pickup_address": donation_data.get("pickup_address", ""),
         "latitude": donation_data.get("latitude"),
         "longitude": donation_data.get("longitude"),
-
         # ML inputs
         "storage_time_hours": float(donation_data.get("storage_time_hours", 0)),
         "time_since_cooking_hours": float(donation_data.get("time_since_cooking_hours", 0)),
@@ -130,31 +130,26 @@ def run_pipeline(donation_data: dict) -> dict:
         "cooking_method": donation_data.get("cooking_method", "boiled"),
         "texture": donation_data.get("texture", "firm"),
         "smell": donation_data.get("smell", "neutral"),
-
         # ML results (set by intake agent)
         "freshness_score": 0,
         "freshness_label": "",
         "ml_confidence": 0,
         "shap_explanation": [],
-
         # Verification (set by verification agent)
         "is_valid": False,
         "verification_notes": [],
         "anomalies": [],
-
         # Matching (set by matching agent)
         "matched_ngos": [],
         "current_ngo_index": 0,
         "assigned_ngo_id": None,
         "assigned_ngo_name": "",
-
         # Logistics
         "claim_sent": False,
         "claim_accepted": False,
         "escalation_count": 0,
         "max_escalations": 3,
         "needs_escalation": False,
-
         # Meta
         "status": "starting",
         "error_message": "",

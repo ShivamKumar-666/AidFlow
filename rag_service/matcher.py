@@ -6,9 +6,13 @@ Combines RAG retrieval with business logic for optimal matching.
 import logging
 import math
 from typing import Dict, List, Optional
-from .ngo_embeddings import search_similar_ngos, upsert_ngo, ensure_collection
+from django.contrib.auth import get_user_model
+
+from .ngo_embeddings import search_similar_ngos, upsert_ngo
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -19,8 +23,7 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
 
-    a = (math.sin(dlat / 2) ** 2 +
-         math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2)
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return R * c
@@ -111,9 +114,10 @@ def match_donation_to_ngos(
 
         try:
             from django.contrib.auth import get_user_model
+
             User = get_user_model()
             ngo = User.objects.get(id=ngo_id, role__in=["ngo", "shelter"])
-        except Exception: # Catch Exception since User.DoesNotExist might not be defined if get_user_model fails
+        except Exception:  # Catch Exception since User.DoesNotExist might not be defined if get_user_model fails
             continue
 
         # Distance score
@@ -129,39 +133,41 @@ def match_donation_to_ngos(
         # Capacity score
         capacity_score = 1.0
         donation_qty = float(donation.get("quantity_kg", 0))
-        if hasattr(ngo, 'capacity_kg') and ngo.capacity_kg and donation_qty:
+        if hasattr(ngo, "capacity_kg") and ngo.capacity_kg and donation_qty:
             if donation_qty <= ngo.capacity_kg:
                 capacity_score = 1.0  # Fits within capacity
             else:
                 capacity_score = max(0.3, ngo.capacity_kg / donation_qty)
 
         # Reliability score (0-1)
-        reliability_score = getattr(ngo, 'reliability_score', 80) / 100.0
+        reliability_score = getattr(ngo, "reliability_score", 80) / 100.0
 
         # Combined score (weighted)
         combined_score = (
-            0.40 * semantic_score +      # How well NGO capabilities match
-            0.25 * distance_score +       # How close the NGO is
-            0.15 * capacity_score +       # Whether NGO can handle the quantity
-            0.20 * reliability_score      # Past reliability
+            0.40 * semantic_score  # How well NGO capabilities match
+            + 0.25 * distance_score  # How close the NGO is
+            + 0.15 * capacity_score  # Whether NGO can handle the quantity
+            + 0.20 * reliability_score  # Past reliability
         )
 
-        matched_ngos.append({
-            "ngo_id": ngo_id,
-            "ngo_name": ngo.username,
-            "ngo_address": ngo.address or "",
-            "ngo_phone": ngo.phone or "",
-            "latitude": ngo.latitude,
-            "longitude": ngo.longitude,
-            "capacity_kg": ngo.capacity_kg,
-            "reliability_score": ngo.reliability_score,
-            "total_collections": ngo.total_collections,
-            "semantic_score": round(semantic_score, 4),
-            "distance_km": round(distance_km, 1),
-            "distance_score": round(distance_score, 4),
-            "capacity_score": round(capacity_score, 4),
-            "combined_score": round(combined_score, 4),
-        })
+        matched_ngos.append(
+            {
+                "ngo_id": ngo_id,
+                "ngo_name": ngo.username,
+                "ngo_address": ngo.address or "",
+                "ngo_phone": ngo.phone or "",
+                "latitude": ngo.latitude,
+                "longitude": ngo.longitude,
+                "capacity_kg": ngo.capacity_kg,
+                "reliability_score": ngo.reliability_score,
+                "total_collections": ngo.total_collections,
+                "semantic_score": round(semantic_score, 4),
+                "distance_km": round(distance_km, 1),
+                "distance_score": round(distance_score, 4),
+                "capacity_score": round(capacity_score, 4),
+                "combined_score": round(combined_score, 4),
+            }
+        )
 
     # Sort by combined score descending
     matched_ngos.sort(key=lambda x: x["combined_score"], reverse=True)

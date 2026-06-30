@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import VisionIntakeView, ChatIntakeView, SHAPExplanationView
+
+from .views import ChatIntakeView, SHAPExplanationView, VisionIntakeView
 
 urlpatterns = [
     path("vision/", VisionIntakeView.as_view(), name="genai-vision"),

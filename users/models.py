@@ -4,16 +4,16 @@ from django.db import models
 
 class CustomUser(AbstractUser):
     class UserRole(models.TextChoices):
-        DONOR = 'donor', 'Donor'
-        NGO = 'ngo', 'NGO'
-        SHELTER = 'shelter', 'Shelter'
-        RESTAURANT = 'restaurant', 'Restaurant'
+        DONOR = "donor", "Donor"
+        NGO = "ngo", "NGO"
+        SHELTER = "shelter", "Shelter"
+        RESTAURANT = "restaurant", "Restaurant"
 
     role = models.CharField(
         max_length=20,
         choices=UserRole.choices,
         default=UserRole.DONOR,
-        help_text="The primary role of this user in the ecosystem."
+        help_text="The primary role of this user in the ecosystem.",
     )
 
     # Contact & Profile Details
@@ -21,11 +21,7 @@ class CustomUser(AbstractUser):
     address = models.TextField(blank=True, null=True)
 
     # For NGOs/Shelters: How much food can they accept?
-    capacity_kg = models.IntegerField(
-        blank=True,
-        null=True,
-        help_text="Max storage capacity in KG (for Shelters/NGOs)"
-    )
+    capacity_kg = models.IntegerField(blank=True, null=True, help_text="Max storage capacity in KG (for Shelters/NGOs)")
 
     # Geo-Location
     latitude = models.FloatField(null=True, blank=True)
@@ -35,26 +31,28 @@ class CustomUser(AbstractUser):
 
     # Dietary restrictions they serve (e.g. "vegetarian only, halal, no pork")
     dietary_restrictions = models.CharField(
-        max_length=500, blank=True, default='',
-        help_text="Comma-separated dietary rules: vegetarian, halal, jain, no-pork, etc."
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Comma-separated dietary rules: vegetarian, halal, jain, no-pork, etc.",
     )
 
     # Cultural/religious rules
     cultural_rules = models.CharField(
-        max_length=500, blank=True, default='',
-        help_text="Cultural/religious constraints: no-beef, halal-only, kosher, etc."
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Cultural/religious constraints: no-beef, halal-only, kosher, etc.",
     )
 
     # Operating hours (JSON string or simple text)
     operating_hours = models.CharField(
-        max_length=200, blank=True, default='8:00-20:00',
-        help_text="Operating hours: e.g. 8:00-20:00 or 24/7"
+        max_length=200, blank=True, default="8:00-20:00", help_text="Operating hours: e.g. 8:00-20:00 or 24/7"
     )
 
     # Past reliability score (0-100, updated by system)
     reliability_score = models.FloatField(
-        default=80.0,
-        help_text="Past pickup reliability (0-100). Updated by logistics agent."
+        default=80.0, help_text="Past pickup reliability (0-100). Updated by logistics agent."
     )
 
     # Total donations successfully collected
@@ -62,8 +60,9 @@ class CustomUser(AbstractUser):
 
     # Free-text capability description (for embedding)
     capability_document = models.TextField(
-        blank=True, default='',
-        help_text="Free-text NGO profile for semantic matching. Auto-generated from fields above or written manually."
+        blank=True,
+        default="",
+        help_text="Free-text NGO profile for semantic matching. Auto-generated from fields above or written manually.",
     )
 
     # Whether the NGO profile has been embedded in Qdrant
@@ -71,8 +70,8 @@ class CustomUser(AbstractUser):
 
     class Meta:
         indexes = [
-            models.Index(fields=['role']),
-            models.Index(fields=['is_embedded']),
+            models.Index(fields=["role"]),
+            models.Index(fields=["is_embedded"]),
         ]
 
     def __str__(self):
@@ -100,5 +99,5 @@ class CustomUser(AbstractUser):
 
         doc = " | ".join(parts)
         self.capability_document = doc
-        self.save(update_fields=['capability_document'])
+        self.save(update_fields=["capability_document"])
         return doc

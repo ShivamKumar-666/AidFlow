@@ -20,9 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="donation",
             name="confidence",
-            field=models.FloatField(
-                blank=True, help_text="ML model confidence %", null=True
-            ),
+            field=models.FloatField(blank=True, help_text="ML model confidence %", null=True),
         ),
         migrations.AddField(
             model_name="donation",

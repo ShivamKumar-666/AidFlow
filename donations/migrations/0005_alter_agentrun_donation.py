@@ -7,13 +7,19 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('donations', '0004_agentrun'),
+        ("donations", "0004_agentrun"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='agentrun',
-            name='donation',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='agent_runs', to='donations.donation'),
+            model_name="agentrun",
+            name="donation",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="agent_runs",
+                to="donations.donation",
+            ),
         ),
     ]

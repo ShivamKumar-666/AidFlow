@@ -4,8 +4,9 @@ Flags suspicious donations before matching.
 """
 
 import logging
+
 from django.utils import timezone
-from typing import Dict
+
 from .state import DonationState
 
 logger = logging.getLogger(__name__)

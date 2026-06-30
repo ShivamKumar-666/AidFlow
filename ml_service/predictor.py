@@ -3,29 +3,30 @@ XGBoost predictor for food freshness.
 Loads the trained model and FeatureBuilder for inference.
 """
 
-import os
 import logging
-import numpy as np
-import pandas as pd
+import os
+from dataclasses import asdict, dataclass
+from typing import Dict, List, Optional
+
 import joblib
+import numpy as np
 import xgboost as xgb
-from typing import Dict, Optional, List
-from dataclasses import dataclass, asdict
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, 'models')
-MODEL_PATH = os.path.join(MODEL_DIR, 'freshness_xgb_v1.json')
-ENCODER_PATH = os.path.join(MODEL_DIR, 'feature_builder_v1.pkl')
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+MODEL_PATH = os.path.join(MODEL_DIR, "freshness_xgb_v1.json")
+ENCODER_PATH = os.path.join(MODEL_DIR, "feature_builder_v1.pkl")
 # Fallback paths (old model)
-FALLBACK_MODEL_PATH = os.path.join(MODEL_DIR, 'freshness_xgb.json')
-FALLBACK_ENCODER_PATH = os.path.join(MODEL_DIR, 'encoders.pkl')
+FALLBACK_MODEL_PATH = os.path.join(MODEL_DIR, "freshness_xgb.json")
+FALLBACK_ENCODER_PATH = os.path.join(MODEL_DIR, "encoders.pkl")
 
 
 @dataclass
 class PredictionResult:
     """Structured prediction output."""
+
     freshness_label: str
     freshness_score: int
     confidence: float
@@ -48,7 +49,7 @@ class FreshnessPredictor:
     Loads model once, predicts many times.
     """
 
-    SCORE_MAP = {'Fresh': 100, 'Medium': 50, 'Spoiled': 0}
+    SCORE_MAP = {"Fresh": 100, "Medium": 50, "Spoiled": 0}
 
     def __init__(self):
         self.model: Optional[xgb.XGBClassifier] = None
@@ -116,10 +117,7 @@ class FreshnessPredictor:
         confidence = float(probabilities[pred_idx]) * 100
 
         # Calculate freshness score (weighted sum)
-        score = sum(
-            self.SCORE_MAP.get(cls, 0) * prob
-            for cls, prob in zip(classes, probabilities)
-        )
+        score = sum(self.SCORE_MAP.get(cls, 0) * prob for cls, prob in zip(classes, probabilities))
         freshness_score = int(round(score))
 
         # Build probability dict

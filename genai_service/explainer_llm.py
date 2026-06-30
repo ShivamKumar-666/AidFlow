@@ -5,7 +5,8 @@ Combines SHAP feature contributions with LLM for natural language output.
 
 import logging
 from typing import Dict, List
-from .config import get_client, TEXT_MODEL
+
+from .config import TEXT_MODEL, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +50,7 @@ def explain_freshness(
         return _simple_explanation(freshness_label, freshness_score)
 
     # Format SHAP features for prompt
-    shap_text = "\n".join(
-        f"- {f['feature']}: {f['impact']:+.4f} ({f['direction']})"
-        for f in shap_features[:3]
-    )
+    shap_text = "\n".join(f"- {f['feature']}: {f['impact']:+.4f} ({f['direction']})" for f in shap_features[:3])
 
     prompt = EXPLANATION_PROMPT.format(
         freshness_label=freshness_label,
@@ -66,7 +64,10 @@ def explain_freshness(
         response = client.chat.completions.create(
             model=TEXT_MODEL,
             messages=[
-                {"role": "system", "content": "You are a concise food safety assistant. Output only the explanation sentence, nothing else."},
+                {
+                    "role": "system",
+                    "content": "You are a concise food safety assistant. Output only the explanation sentence, nothing else.",
+                },
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,

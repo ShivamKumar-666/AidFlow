@@ -4,8 +4,9 @@ First step in the pipeline.
 """
 
 import logging
+
 from django.utils import timezone
-from typing import Dict
+
 from .state import DonationState
 
 logger = logging.getLogger(__name__)
@@ -31,8 +32,8 @@ def intake_agent(state: DonationState) -> DonationState:
 
     try:
         # Import ML components
-        from ml_service.predictor import get_predictor
         from ml_service.explainer import get_explainer
+        from ml_service.predictor import get_predictor
 
         predictor = get_predictor()
         explainer = get_explainer()

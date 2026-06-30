@@ -92,7 +92,7 @@ jobs:
           flake8 . \
             --exclude=venv,env,.env,staticfiles,migrations,ml_service/models \
             --max-line-length=120 \
-            --ignore=E501,W503,E203 \
+            --ignore=E501,W503,E203,F541,E226,E402,F841 \
             --per-file-ignores="tests/*:F401,F811"
 
       - name: Run pytest

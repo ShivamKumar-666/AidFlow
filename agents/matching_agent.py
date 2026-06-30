@@ -5,7 +5,7 @@ Third step in the pipeline.
 
 import logging
 from datetime import datetime
-from typing import Dict
+
 from .state import DonationState
 
 logger = logging.getLogger(__name__)

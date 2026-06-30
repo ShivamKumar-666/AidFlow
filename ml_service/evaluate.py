@@ -4,30 +4,31 @@ Generates precision/recall, confusion matrix, and ROC-AUC metrics.
 Run standalone: python -m ml_service.evaluate
 """
 
-import os
 import json
 import logging
-import pandas as pd
-import numpy as np
-import xgboost as xgb
+import os
+
 import joblib
-from sklearn.model_selection import train_test_split
+import pandas as pd
+import xgboost as xgb
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
-    roc_auc_score,
     precision_recall_fscore_support,
+    roc_auc_score,
 )
-from .feature_builder import FeatureBuilder, CONFIG
+from sklearn.model_selection import train_test_split
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from .feature_builder import CONFIG, FeatureBuilder
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, '..', 'donations', 'food_data.csv')
-MODEL_PATH = os.path.join(BASE_DIR, 'models', 'freshness_xgb_v1.json')
-ENCODER_PATH = os.path.join(BASE_DIR, 'models', 'feature_builder_v1.pkl')
-EVAL_OUTPUT = os.path.join(BASE_DIR, 'models', 'evaluation_report.json')
+DATA_PATH = os.path.join(BASE_DIR, "..", "donations", "food_data.csv")
+MODEL_PATH = os.path.join(BASE_DIR, "models", "freshness_xgb_v1.json")
+ENCODER_PATH = os.path.join(BASE_DIR, "models", "feature_builder_v1.pkl")
+EVAL_OUTPUT = os.path.join(BASE_DIR, "models", "evaluation_report.json")
 
 
 def evaluate() -> dict:
@@ -48,9 +49,7 @@ def evaluate() -> dict:
     classes = builder.classes
 
     # Train/test split (same as training for consistency)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
     # Load model
     model = xgb.XGBClassifier()
@@ -62,7 +61,8 @@ def evaluate() -> dict:
 
     # Classification report
     report = classification_report(
-        y_test, y_pred,
+        y_test,
+        y_pred,
         target_names=classes,
         output_dict=True,
     )
@@ -72,42 +72,40 @@ def evaluate() -> dict:
 
     # ROC-AUC
     try:
-        auc_weighted = roc_auc_score(y_test, y_proba, multi_class='ovr', average='weighted')
-        auc_macro = roc_auc_score(y_test, y_proba, multi_class='ovr', average='macro')
+        auc_weighted = roc_auc_score(y_test, y_proba, multi_class="ovr", average="weighted")
+        auc_macro = roc_auc_score(y_test, y_proba, multi_class="ovr", average="macro")
     except Exception:
         auc_weighted = auc_macro = 0.0
 
     # Per-class metrics
-    precision, recall, f1, support = precision_recall_fscore_support(
-        y_test, y_pred, average=None
-    )
+    precision, recall, f1, support = precision_recall_fscore_support(y_test, y_pred, average=None)
 
     evaluation = {
-        'overall': {
-            'accuracy': report['accuracy'],
-            'roc_auc_weighted': round(auc_weighted, 4),
-            'roc_auc_macro': round(auc_macro, 4),
-            'test_samples': len(y_test),
+        "overall": {
+            "accuracy": report["accuracy"],
+            "roc_auc_weighted": round(auc_weighted, 4),
+            "roc_auc_macro": round(auc_macro, 4),
+            "test_samples": len(y_test),
         },
-        'per_class': {},
-        'confusion_matrix': {
-            'labels': list(classes),
-            'matrix': cm.tolist(),
+        "per_class": {},
+        "confusion_matrix": {
+            "labels": list(classes),
+            "matrix": cm.tolist(),
         },
-        'classification_report': report,
+        "classification_report": report,
     }
 
     for i, cls in enumerate(classes):
-        evaluation['per_class'][cls] = {
-            'precision': round(float(precision[i]), 4),
-            'recall': round(float(recall[i]), 4),
-            'f1_score': round(float(f1[i]), 4),
-            'support': int(support[i]),
+        evaluation["per_class"][cls] = {
+            "precision": round(float(precision[i]), 4),
+            "recall": round(float(recall[i]), 4),
+            "f1_score": round(float(f1[i]), 4),
+            "support": int(support[i]),
         }
 
     # Save report
     os.makedirs(os.path.dirname(EVAL_OUTPUT), exist_ok=True)
-    with open(EVAL_OUTPUT, 'w') as f:
+    with open(EVAL_OUTPUT, "w") as f:
         json.dump(evaluation, f, indent=2)
 
     # Print summary
@@ -121,7 +119,7 @@ def evaluate() -> dict:
     print(f"\nPer-Class Metrics:")
     print(f"{'-'*60}")
     for cls in classes:
-        m = evaluation['per_class'][cls]
+        m = evaluation["per_class"][cls]
         print(f"  {cls:12s}  P={m['precision']:.3f}  R={m['recall']:.3f}  F1={m['f1_score']:.3f}  N={m['support']}")
     print(f"\nConfusion Matrix:")
     print(f"{'-'*60}")
@@ -133,5 +131,5 @@ def evaluate() -> dict:
     return evaluation
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     evaluate()

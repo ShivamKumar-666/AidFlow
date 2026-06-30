@@ -3,27 +3,34 @@ Shared feature engineering for training and prediction.
 Eliminates train/serve skew — both trainer and predictor use this exact class.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from typing import Dict, List
+
+import numpy as np
+import pandas as pd
 
 
 @dataclass
 class FeatureConfig:
     """Central configuration for all features."""
+
     CATEGORICAL_FEATURES: List[str] = None
     NUMERICAL_FEATURES: List[str] = None
-    TARGET_COL: str = 'freshness_level'
+    TARGET_COL: str = "freshness_level"
 
     def __post_init__(self):
         if self.CATEGORICAL_FEATURES is None:
             self.CATEGORICAL_FEATURES = [
-                'storage_condition', 'container_type', 'food_type',
-                'moisture_type', 'cooking_method', 'texture', 'smell'
+                "storage_condition",
+                "container_type",
+                "food_type",
+                "moisture_type",
+                "cooking_method",
+                "texture",
+                "smell",
             ]
         if self.NUMERICAL_FEATURES is None:
-            self.NUMERICAL_FEATURES = ['storage_time', 'time_since_cooking']
+            self.NUMERICAL_FEATURES = ["storage_time", "time_since_cooking"]
 
 
 CONFIG = FeatureConfig()
@@ -41,7 +48,7 @@ class FeatureBuilder:
         self.feature_cols: List[str] = []
         self._fitted = False
 
-    def fit(self, df: pd.DataFrame) -> 'FeatureBuilder':
+    def fit(self, df: pd.DataFrame) -> "FeatureBuilder":
         """Fit label encoders on training data."""
         from sklearn.preprocessing import LabelEncoder
 
@@ -55,7 +62,7 @@ class FeatureBuilder:
         self.target_encoder.fit(df[CONFIG.TARGET_COL].astype(str))
 
         # Build feature column names
-        encoded_cols = [f'{c}_encoded' for c in CONFIG.CATEGORICAL_FEATURES]
+        encoded_cols = [f"{c}_encoded" for c in CONFIG.CATEGORICAL_FEATURES]
         self.feature_cols = CONFIG.NUMERICAL_FEATURES + encoded_cols
 
         self._fitted = True
@@ -70,7 +77,7 @@ class FeatureBuilder:
 
         # Numerical features
         for col in CONFIG.NUMERICAL_FEATURES:
-            result[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            result[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
         # Categorical features — encode
         for col in CONFIG.CATEGORICAL_FEATURES:
@@ -82,7 +89,7 @@ class FeatureBuilder:
             # Handle unseen values
             known = set(le.classes_)
             encoded = values.apply(lambda x: le.transform([x])[0] if x in known else 0)
-            result[f'{col}_encoded'] = encoded
+            result[f"{col}_encoded"] = encoded
 
         return result
 
@@ -105,14 +112,14 @@ class FeatureBuilder:
     def classes(self) -> np.ndarray:
         """Return target classes."""
         if self.target_encoder is None:
-            return np.array(['Fresh', 'Medium', 'Spoiled'])
+            return np.array(["Fresh", "Medium", "Spoiled"])
         return self.target_encoder.classes_
-        
+
     @property
     def feature_names(self) -> List[str]:
         """Alias for feature_cols to maintain backward compatibility."""
         return self.feature_cols
-        
+
     def get_feature_names(self) -> List[str]:
         """Alias for feature_cols to maintain backward compatibility."""
         return self.feature_cols

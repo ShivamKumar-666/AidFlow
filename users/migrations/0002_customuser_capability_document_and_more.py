@@ -6,48 +6,66 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('users', '0001_initial'),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customuser',
-            name='capability_document',
-            field=models.TextField(blank=True, default='', help_text='Free-text NGO profile for semantic matching. Auto-generated from fields above or written manually.'),
+            model_name="customuser",
+            name="capability_document",
+            field=models.TextField(
+                blank=True,
+                default="",
+                help_text="Free-text NGO profile for semantic matching. Auto-generated from fields above or written manually.",
+            ),
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='cultural_rules',
-            field=models.CharField(blank=True, default='', help_text='Cultural/religious constraints: no-beef, halal-only, kosher, etc.', max_length=500),
+            model_name="customuser",
+            name="cultural_rules",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Cultural/religious constraints: no-beef, halal-only, kosher, etc.",
+                max_length=500,
+            ),
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='dietary_restrictions',
-            field=models.CharField(blank=True, default='', help_text='Comma-separated dietary rules: vegetarian, halal, jain, no-pork, etc.', max_length=500),
+            model_name="customuser",
+            name="dietary_restrictions",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text="Comma-separated dietary rules: vegetarian, halal, jain, no-pork, etc.",
+                max_length=500,
+            ),
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='is_embedded',
+            model_name="customuser",
+            name="is_embedded",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='operating_hours',
-            field=models.CharField(blank=True, default='8:00-20:00', help_text='Operating hours: e.g. 8:00-20:00 or 24/7', max_length=200),
+            model_name="customuser",
+            name="operating_hours",
+            field=models.CharField(
+                blank=True, default="8:00-20:00", help_text="Operating hours: e.g. 8:00-20:00 or 24/7", max_length=200
+            ),
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='reliability_score',
-            field=models.FloatField(default=80.0, help_text='Past pickup reliability (0-100). Updated by logistics agent.'),
+            model_name="customuser",
+            name="reliability_score",
+            field=models.FloatField(
+                default=80.0, help_text="Past pickup reliability (0-100). Updated by logistics agent."
+            ),
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='total_collections',
+            model_name="customuser",
+            name="total_collections",
             field=models.IntegerField(default=0),
         ),
         migrations.AddIndex(
-            model_name='customuser',
-            index=models.Index(fields=['is_embedded'], name='users_custo_is_embe_e140c6_idx'),
+            model_name="customuser",
+            index=models.Index(fields=["is_embedded"], name="users_custo_is_embe_e140c6_idx"),
         ),
     ]

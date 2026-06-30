@@ -4,9 +4,9 @@ Fourth step — the key autonomy behavior.
 """
 
 import logging
-from datetime import timedelta
+
 from django.utils import timezone
-from typing import Dict
+
 from .state import DonationState
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,7 @@ def logistics_agent(state: DonationState) -> DonationState:
     # For demo: simulate acceptance based on reliability score
     # TODO: Replace with real NGO notification logic
     import random
+
     reliability = ngo.get("reliability_score", 80) / 100.0
     acceptance_probability = reliability * 0.8  # 80% base chance
 

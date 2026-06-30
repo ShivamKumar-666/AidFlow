@@ -2,18 +2,19 @@
 Agent API views — Trigger and monitor the agentic pipeline.
 """
 
-import json
 import logging
 from datetime import datetime
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import permissions, status
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
-from django.db import transaction
 
-from donations.models import Donation, AgentRun
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.shortcuts import render
+from django.utils import timezone
+from rest_framework import permissions, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from donations.models import AgentRun, Donation
+
 from .orchestrator import run_pipeline
 
 logger = logging.getLogger(__name__)
@@ -22,11 +23,12 @@ logger = logging.getLogger(__name__)
 @login_required
 def agent_dashboard_view(request):
     """Render the agent observability dashboard."""
-    return render(request, 'agent_dashboard.html')
+    return render(request, "agent_dashboard.html")
 
 
 class RunPipelineView(APIView):
     """POST /api/agents/run/ — Run the full agent pipeline on a donation."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -45,8 +47,8 @@ class RunPipelineView(APIView):
                     "description": donation.description,
                     "quantity_kg": donation.quantity_kg,
                     "pickup_address": donation.pickup_address,
-                    "latitude": getattr(donation.donor, 'latitude', None),
-                    "longitude": getattr(donation.donor, 'longitude', None),
+                    "latitude": getattr(donation.donor, "latitude", None),
+                    "longitude": getattr(donation.donor, "longitude", None),
                     "storage_time_hours": donation.storage_time_hours,
                     "time_since_cooking_hours": donation.time_since_cooking_hours,
                     "storage_condition": donation.storage_condition,
@@ -97,7 +99,7 @@ class RunPipelineView(APIView):
             if final_state.get("claim_accepted") and donation_id:
                 try:
                     with transaction.atomic():
-                        donation = Donation.objects.select_for_update().get(id=donation_id, status='pending')
+                        donation = Donation.objects.select_for_update().get(id=donation_id, status="pending")
                         donation.status = "claimed"
                         donation.recipient_id = final_state.get("assigned_ngo_id")
                         donation.claimed_at = timezone.now()
@@ -110,18 +112,21 @@ class RunPipelineView(APIView):
                 except Exception as e:
                     logger.error(f"Failed to update donation: {e}")
 
-            return Response({
-                "success": True,
-                "pipeline_status": final_state.get("status"),
-                "freshness_score": final_state.get("freshness_score"),
-                "freshness_label": final_state.get("freshness_label"),
-                "is_valid": final_state.get("is_valid"),
-                "anomalies": final_state.get("anomalies", []),
-                "assigned_ngo": final_state.get("assigned_ngo_name"),
-                "escalations": final_state.get("escalation_count", 0),
-                "decision_trail": final_state.get("decision_trail", []),
-                "agent_run_id": agent_run.id,
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    "success": True,
+                    "pipeline_status": final_state.get("status"),
+                    "freshness_score": final_state.get("freshness_score"),
+                    "freshness_label": final_state.get("freshness_label"),
+                    "is_valid": final_state.get("is_valid"),
+                    "anomalies": final_state.get("anomalies", []),
+                    "assigned_ngo": final_state.get("assigned_ngo_name"),
+                    "escalations": final_state.get("escalation_count", 0),
+                    "decision_trail": final_state.get("decision_trail", []),
+                    "agent_run_id": agent_run.id,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         except Exception as e:
             logger.error(f"Pipeline failed: {e}")
@@ -133,26 +138,29 @@ class RunPipelineView(APIView):
 
 class AgentRunsView(APIView):
     """GET /api/agents/runs/ — List recent agent runs for observability."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        runs = AgentRun.objects.select_related('donation').all()[:20]
+        runs = AgentRun.objects.select_related("donation").all()[:20]
 
         data = []
         for run in runs:
-            data.append({
-                "id": run.id,
-                "donation_id": run.donation_id,
-                "donation_name": run.donation.food_name if run.donation else "",
-                "status": run.status,
-                "final_ngo": run.final_ngo_name,
-                "ml_score": run.ml_freshness_score,
-                "anomalies": run.anomalies_found,
-                "escalations": run.escalations,
-                "matched_ngos": run.matched_ngos_count,
-                "duration_seconds": run.duration_seconds,
-                "started_at": run.started_at.isoformat() if run.started_at else "",
-                "decision_trail": run.decision_trail,
-            })
+            data.append(
+                {
+                    "id": run.id,
+                    "donation_id": run.donation_id,
+                    "donation_name": run.donation.food_name if run.donation else "",
+                    "status": run.status,
+                    "final_ngo": run.final_ngo_name,
+                    "ml_score": run.ml_freshness_score,
+                    "anomalies": run.anomalies_found,
+                    "escalations": run.escalations,
+                    "matched_ngos": run.matched_ngos_count,
+                    "duration_seconds": run.duration_seconds,
+                    "started_at": run.started_at.isoformat() if run.started_at else "",
+                    "decision_trail": run.decision_trail,
+                }
+            )
 
         return Response({"runs": data, "count": len(data)})

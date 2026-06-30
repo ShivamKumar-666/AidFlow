@@ -3,20 +3,22 @@ SHAP-based model explainability.
 Returns top contributing features for each prediction.
 """
 
-import os
 import logging
+import os
+from typing import Dict, List, Optional
+
+import joblib
 import numpy as np
 import shap
 import xgboost as xgb
-import joblib
-from typing import Dict, List, Optional
+
 from .feature_builder import FeatureBuilder
 
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, 'models', 'freshness_xgb_v1.json')
-ENCODER_PATH = os.path.join(BASE_DIR, 'models', 'feature_builder_v1.pkl')
+MODEL_PATH = os.path.join(BASE_DIR, "models", "freshness_xgb_v1.json")
+ENCODER_PATH = os.path.join(BASE_DIR, "models", "feature_builder_v1.pkl")
 
 
 class FreshnessExplainer:
@@ -94,16 +96,18 @@ class FreshnessExplainer:
             contributions = []
             for i, (name, val) in enumerate(zip(feature_names, values)):
                 # Make feature name human-readable
-                readable = name.replace('_encoded', '').replace('_', ' ').title()
-                contributions.append({
-                    'feature': readable,
-                    'raw_feature': name,
-                    'impact': round(float(val), 4),
-                    'direction': 'positive' if val > 0 else 'negative' if val < 0 else 'neutral',
-                })
+                readable = name.replace("_encoded", "").replace("_", " ").title()
+                contributions.append(
+                    {
+                        "feature": readable,
+                        "raw_feature": name,
+                        "impact": round(float(val), 4),
+                        "direction": "positive" if val > 0 else "negative" if val < 0 else "neutral",
+                    }
+                )
 
             # Sort by absolute impact, return top N
-            contributions.sort(key=lambda x: abs(x['impact']), reverse=True)
+            contributions.sort(key=lambda x: abs(x["impact"]), reverse=True)
             return contributions[:top_n]
 
         except Exception as e:
@@ -122,7 +126,7 @@ class FreshnessExplainer:
 
         parts = []
         for f in features:
-            direction = "favors" if f['direction'] == 'positive' else "reduces"
+            direction = "favors" if f["direction"] == "positive" else "reduces"
             parts.append(f"{f['feature']} {direction} freshness")
 
         return "Top factors: " + "; ".join(parts) + "."

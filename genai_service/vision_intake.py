@@ -5,8 +5,8 @@ Uses Groq's Llama 4 Scout vision model.
 
 import base64
 import logging
-from typing import Optional
-from .config import get_client, VISION_MODEL
+
+from .config import VISION_MODEL, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,7 @@ def extract_from_image(image_bytes: bytes, filename: str = "") -> dict:
         )
 
         import json
+
         result = json.loads(response.choices[0].message.content)
 
         # Validate and normalize
@@ -117,6 +118,7 @@ def extract_from_url(image_url: str) -> dict:
         )
 
         import json
+
         result = json.loads(response.choices[0].message.content)
         return _validate_result(result)
 

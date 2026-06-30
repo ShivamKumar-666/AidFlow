@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import RunPipelineView, AgentRunsView, agent_dashboard_view
+
+from .views import AgentRunsView, RunPipelineView, agent_dashboard_view
 
 urlpatterns = [
     path("run/", RunPipelineView.as_view(), name="agent-run-pipeline"),

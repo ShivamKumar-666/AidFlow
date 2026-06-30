@@ -3,19 +3,20 @@ NGO Embeddings — Embed NGO profiles into Qdrant vector store.
 Uses HuggingFace all-MiniLM-L6-v2 for embeddings.
 """
 
-import os
 import logging
-from typing import List, Dict, Optional
-from sentence_transformers import SentenceTransformer
+import os
+from typing import Dict, List, Optional
+
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
-    VectorParams,
     Distance,
-    PointStruct,
-    Filter,
     FieldCondition,
+    Filter,
     MatchValue,
+    PointStruct,
+    VectorParams,
 )
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +150,7 @@ def search_similar_ngos(
     if filters:
         conditions = []
         for key, value in filters.items():
-            conditions.append(
-                FieldCondition(key=key, match=MatchValue(value=value))
-            )
+            conditions.append(FieldCondition(key=key, match=MatchValue(value=value)))
         if conditions:
             query_filter = Filter(must=conditions)
 

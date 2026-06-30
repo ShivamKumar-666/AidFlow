@@ -2,18 +2,20 @@
 GenAI API views — Vision intake, Chat intake, SHAP explanation.
 """
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import permissions, status
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .vision_intake import extract_from_image
-from .chat_intake import extract_from_text
 from ml_service.explainer import get_explainer
+
+from .chat_intake import extract_from_text
+from .vision_intake import extract_from_image
 
 
 class VisionIntakeView(APIView):
     """POST /api/genai/vision/ — Upload food photo, get structured data."""
+
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -26,16 +28,16 @@ class VisionIntakeView(APIView):
             )
 
         # Basic security checks
-        MAX_FILE_SIZE = 10 * 1024 * 1024 # 10 MB
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
         if image_file.size > MAX_FILE_SIZE:
-             return Response(
+            return Response(
                 {"success": False, "error": "File size exceeds 10MB limit"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        valid_mime_types = ['image/jpeg', 'image/png', 'image/webp']
+
+        valid_mime_types = ["image/jpeg", "image/png", "image/webp"]
         if image_file.content_type not in valid_mime_types:
-             return Response(
+            return Response(
                 {"success": False, "error": f"Invalid file type. Allowed: {', '.join(valid_mime_types)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -44,7 +46,7 @@ class VisionIntakeView(APIView):
             image_bytes = image_file.read()
             result = extract_from_image(image_bytes, image_file.name)
             return Response(result, status=status.HTTP_200_OK)
-        except Exception as e:
+        except Exception:
             return Response(
                 {"success": False, "error": "An error occurred while processing the image."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -53,6 +55,7 @@ class VisionIntakeView(APIView):
 
 class ChatIntakeView(APIView):
     """POST /api/genai/chat/ — Free text → structured donation data."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -66,7 +69,7 @@ class ChatIntakeView(APIView):
         try:
             result = extract_from_text(text)
             return Response(result, status=status.HTTP_200_OK)
-        except Exception as e:
+        except Exception:
             return Response(
                 {"success": False, "error": "An error occurred while processing the text."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -75,6 +78,7 @@ class ChatIntakeView(APIView):
 
 class SHAPExplanationView(APIView):
     """POST /api/genai/explain/ — Get LLM-powered SHAP explanation."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -101,18 +105,22 @@ class SHAPExplanationView(APIView):
 
         try:
             from .explainer_llm import explain_freshness
+
             explanation = explain_freshness(
                 freshness_label=freshness_label,
                 freshness_score=freshness_score,
                 confidence=confidence,
                 shap_features=shap_features,
             )
-            return Response({
-                "success": True,
-                "explanation": explanation,
-                "shap_features": shap_features,
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
+            return Response(
+                {
+                    "success": True,
+                    "explanation": explanation,
+                    "shap_features": shap_features,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception:
             return Response(
                 {"success": False, "error": "An error occurred while generating the explanation."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
