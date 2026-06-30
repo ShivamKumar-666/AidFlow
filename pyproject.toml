@@ -1,6 +1,3 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.backends._legacy:_Backend"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
