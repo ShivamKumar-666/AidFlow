@@ -59,23 +59,22 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
-          # Meson overrides PKG_CONFIG_PATH to only the Python sysconfig data
-          # path — so cairo.pc must live THERE, not in /usr/lib/...pkgconfig.
-          PYTHON_PKGCONFIG=$(python -c "import sysconfig; print(sysconfig.get_path('data'))")/lib/pkgconfig
-          sudo mkdir -p "$PYTHON_PKGCONFIG"
-          sudo cp /usr/lib/x86_64-linux-gnu/pkgconfig/cairo*.pc "$PYTHON_PKGCONFIG/"
-          echo "Copied cairo.pc to: $PYTHON_PKGCONFIG"
-          ls -la "$PYTHON_PKGCONFIG/" | grep cairo
+          echo "cairo.pc location: $(find /usr -name 'cairo.pc' 2>/dev/null)"
 
-      - name: Debug - identify pycairo requirer
+      - name: Pre-install pycairo with system cairo headers
         run: |
-          echo "=== Packages pip will install ==="
-          pip install --dry-run --no-cache-dir -r requirements-ci.txt 2>&1 | grep -E "Collecting|pycairo|cairo" | head -30
+          # pycairo's meson build OVERRIDES PKG_CONFIG_PATH to only the Python
+          # hostedtoolcache dir, blocking cairo.pc from apt-get.
+          # --no-build-isolation bypasses this: meson inherits the system
+          # PKG_CONFIG_PATH and finds cairo.pc in /usr/lib/.../pkgconfig/.
+          pip install meson-python meson ninja
+          pip install --no-build-isolation --no-cache-dir pycairo==1.29.0
 
       - name: Install CI dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --no-cache-dir -r requirements-ci.txt
+
 
       - name: Wait for Postgres to be ready
         run: |
