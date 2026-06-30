@@ -1,32 +1,16 @@
-# CI requirements — strictly what tests need after sys.modules stubs in conftest.py.
-# sentence-transformers, shap, qdrant-client, groq, langgraph are all stubbed
-# out via sys.modules in tests/conftest.py so they don't need to be installed.
+# Minimal CI requirements — all heavy ML/AI/data libs are stubbed in
+# tests/conftest.py via sys.modules, so they don't need to be installed.
+#
+# Every package here is pure Python or ships pre-built binary wheels —
+# NONE of them can transitively pull pycairo or any other C library build.
 
-# Django core
+# Django stack (auto-pulls: asgiref, sqlparse)
 Django==5.1.6
 djangorestframework==3.16.1
 django-cors-headers==4.9.0
-dj-database-url==2.2.0
+dj-database-url==2.1.0
 python-dotenv==1.0.0
 psycopg2-binary==2.9.9
-gunicorn==21.2.0
-
-# ML (needed for real module-level imports in ml_service/ — no native build deps)
-xgboost==2.1.3
-scikit-learn==1.5.2
-numpy==1.26.4
-pandas==2.2.3
-joblib==1.4.2
-
-# Utils
-requests==2.32.3
-redis==5.2.1
-celery==5.4.0
-httpx==0.27.2
-pydantic==2.10.3
-PyYAML==6.0.2
-geopy==2.4.1
-sqlparse==0.5.3
 
 # Testing
 pytest==8.3.4

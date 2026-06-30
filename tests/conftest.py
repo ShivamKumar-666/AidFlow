@@ -1,50 +1,73 @@
 """
 Pytest configuration and fixtures for AidFlow tests.
 
-Heavy ML/AI libraries (sentence-transformers, shap, qdrant-client, groq) are
-stubbed out via sys.modules BEFORE Django apps are imported. This means CI
-only needs the lightweight Django/DRF stack — the actual ML calls are mocked
-in each individual test via @patch decorators.
+ALL heavy ML/AI/data libraries are stubbed via sys.modules BEFORE Django
+imports any app. This lets CI run on a minimal pure-Python install with zero
+C-extension compilation requirements. Each test already mocks the actual
+function calls with @patch, so the stubs are completely transparent.
 """
 import sys
 from unittest.mock import MagicMock
 
 # ---------------------------------------------------------------------------
-# Stub out heavy libraries that are imported at module level inside the app.
-# These must be set before Django does its app registry import sweep.
+# ML / numeric stack — imported at module level in ml_service/
 # ---------------------------------------------------------------------------
+_np = MagicMock()
+_np.argmax = MagicMock(return_value=0)
+sys.modules['numpy'] = _np
 
-# shap — imported at top of ml_service/explainer.py
-_shap_mock = MagicMock()
-sys.modules['shap'] = _shap_mock
+_pd = MagicMock()
+sys.modules['pandas'] = _pd
+sys.modules['pandas.core'] = MagicMock()
+sys.modules['pandas.core.frame'] = MagicMock()
 
-# sentence_transformers — imported at top of rag_service/ngo_embeddings.py
-_st_mock = MagicMock()
-sys.modules['sentence_transformers'] = _st_mock
+sys.modules['joblib'] = MagicMock()
 
-# qdrant_client — imported at top of rag_service/ngo_embeddings.py
-_qdrant_mock = MagicMock()
-_qdrant_models_mock = MagicMock()
-sys.modules['qdrant_client'] = _qdrant_mock
-sys.modules['qdrant_client.models'] = _qdrant_models_mock
+_xgb = MagicMock()
+sys.modules['xgboost'] = _xgb
 
-# groq — imported at top of genai_service/config.py
-_groq_mock = MagicMock()
-sys.modules['groq'] = _groq_mock
+sys.modules['shap'] = MagicMock()
 
-# langgraph submodules that may be imported at module level in agents/
-_lg_mock = MagicMock()
-sys.modules['langgraph'] = _lg_mock
-sys.modules['langgraph.graph'] = _lg_mock
-sys.modules['langgraph.graph.state'] = _lg_mock
-sys.modules['langgraph.checkpoint'] = _lg_mock
-sys.modules['langgraph.checkpoint.memory'] = _lg_mock
+_sklearn = MagicMock()
+sys.modules['sklearn'] = _sklearn
+sys.modules['sklearn.model_selection'] = MagicMock()
+sys.modules['sklearn.metrics'] = MagicMock()
+sys.modules['sklearn.preprocessing'] = MagicMock()
 
-# langchain_core — may be imported by langgraph or agents
-_lc_mock = MagicMock()
-sys.modules['langchain_core'] = _lc_mock
-sys.modules['langchain_core.runnables'] = _lc_mock
-sys.modules['langchain_core.messages'] = _lc_mock
+# ---------------------------------------------------------------------------
+# RAG / embedding stack — imported at module level in rag_service/
+# ---------------------------------------------------------------------------
+sys.modules['sentence_transformers'] = MagicMock()
+sys.modules['qdrant_client'] = MagicMock()
+sys.modules['qdrant_client.models'] = MagicMock()
+
+# ---------------------------------------------------------------------------
+# GenAI / LLM clients — imported at module level in genai_service/
+# ---------------------------------------------------------------------------
+sys.modules['groq'] = MagicMock()
+
+# ---------------------------------------------------------------------------
+# Agentic orchestration — imported at module level in agents/
+# ---------------------------------------------------------------------------
+_lg = MagicMock()
+sys.modules['langgraph'] = _lg
+sys.modules['langgraph.graph'] = _lg
+sys.modules['langgraph.graph.state'] = _lg
+sys.modules['langgraph.checkpoint'] = _lg
+sys.modules['langgraph.checkpoint.memory'] = _lg
+
+_lc = MagicMock()
+sys.modules['langchain_core'] = _lc
+sys.modules['langchain_core.runnables'] = _lc
+sys.modules['langchain_core.messages'] = _lc
+
+# ---------------------------------------------------------------------------
+# Other optional deps that may be transitively imported
+# ---------------------------------------------------------------------------
+sys.modules['celery'] = MagicMock()
+sys.modules['redis'] = MagicMock()
+sys.modules['geopy'] = MagicMock()
+sys.modules['geopy.distance'] = MagicMock()
 
 # ---------------------------------------------------------------------------
 
