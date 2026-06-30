@@ -1,0 +1,45 @@
+# Minimal CI requirements — tests mock ML/AI calls so heavy libs are excluded.
+# Full production deps are in requirements.txt / requirements-docker.txt
+
+# Django core
+Django==5.1.6
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+dj-database-url==3.1.2
+python-dotenv==1.2.2
+psycopg2-binary==2.9.12
+gunicorn==21.2.0
+
+# LangGraph (lightweight — no torch dependency)
+langgraph==1.2.6
+langgraph-checkpoint==4.1.1
+langchain-core==1.4.8
+
+# ML (lightweight CPU inference only — no torch)
+xgboost==3.2.0
+scikit-learn==1.7.2
+numpy==2.2.1
+pandas==2.2.3
+shap==0.52.0
+joblib==1.5.2
+
+# GenAI / RAG clients (API clients only, not model weights)
+groq==1.5.0
+qdrant-client==1.18.0
+sentence-transformers==5.6.0
+
+# Utils
+requests==2.34.2
+redis==8.0.0
+celery==5.6.3
+httpx==0.28.1
+pydantic==2.13.4
+PyYAML==6.0.3
+geopy==2.4.1
+sqlparse==0.5.3
+
+# Testing
+pytest==9.0.3
+pytest-django==4.11.1
+pytest-cov==7.1.0
+flake8==7.2.0

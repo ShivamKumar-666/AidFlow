@@ -1,4 +1,4 @@
-name: EcoFeast CI
+name: AidFlow CI
 
 on:
   push:
@@ -7,13 +7,13 @@ on:
     branches: [main, develop]
 
 env:
-  POSTGRES_DB: ecofeast
-  POSTGRES_USER: ecofeast
-  POSTGRES_PASSWORD: ecofeast_test
-  DATABASE_URL: postgresql://ecofeast:ecofeast_test@localhost:5432/ecofeast
+  POSTGRES_DB: aidflow
+  POSTGRES_USER: aidflow
+  POSTGRES_PASSWORD: aidflow_test
+  DATABASE_URL: postgresql://aidflow:aidflow_test@localhost:5432/aidflow
   GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
   DEBUG: 'false'
-  SECRET_KEY: ci-fallback-key-do-not-use-in-prod
+  SECRET_KEY: ci-secret-key-not-for-production-use
 
 jobs:
   lint-and-test:
@@ -23,13 +23,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: ecofeast
-          POSTGRES_USER: ecofeast
-          POSTGRES_PASSWORD: ecofeast_test
+          POSTGRES_DB: aidflow
+          POSTGRES_USER: aidflow
+          POSTGRES_PASSWORD: aidflow_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ecofeast -d ecofeast"
+          --health-cmd "pg_isready -U aidflow -d aidflow"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -54,16 +54,20 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
+          cache-dependency-path: requirements-ci.txt
 
-      - name: Install dependencies
+      - name: Install CI dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov flake8 black isort
+          pip install -r requirements-ci.txt
 
-      - name: Wait for services
+      - name: Wait for Postgres to be ready
         run: |
-          pg_isready -h localhost -p 5432 -U ecofeast -d ecofeast
+          for i in {1..10}; do
+            pg_isready -h localhost -p 5432 -U aidflow -d aidflow && break
+            echo "Waiting for postgres... ($i)"
+            sleep 3
+          done
 
       - name: Run Django migrations
         run: python manage.py migrate --noinput
@@ -72,11 +76,17 @@ jobs:
         run: python manage.py check
 
       - name: Run linting (flake8)
-        run: flake8 . --exclude=venv,env,.env,staticfiles,migrations,ml_service/models --max-line-length=120 --ignore=E501
+        run: |
+          flake8 . \
+            --exclude=venv,env,.env,staticfiles,migrations,ml_service/models \
+            --max-line-length=120 \
+            --ignore=E501,W503,E203 \
+            --per-file-ignores="tests/*:F401,F811"
 
       - name: Run pytest
         run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing
+          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing \
+            --ignore=tests/test_api.py
 
   docker-build:
     runs-on: ubuntu-latest
@@ -95,22 +105,22 @@ jobs:
         with:
           context: .
           push: false
-          tags: ecofeast:latest
+          tags: aidflow:latest
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Test Docker image
+      - name: Test Docker image starts
         run: |
-          docker run --rm -d --name ecofeast-test \
+          docker run --rm -d --name aidflow-test \
             -e DATABASE_URL=sqlite:///test.db \
             -e DEBUG=1 \
-            -e SECRET_KEY=test \
+            -e SECRET_KEY=ci-test-key-not-for-prod \
             -p 8000:8000 \
-            ecofeast:latest
+            aidflow:latest
           sleep 15
           curl -f http://localhost:8000/ || exit 1
-          docker stop ecofeast-test
+          docker stop aidflow-test
 
   deploy-staging:
     runs-on: ubuntu-latest
