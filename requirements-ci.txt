@@ -1,5 +1,6 @@
-# Minimal CI requirements — tests mock ML/AI calls so heavy libs are excluded.
-# Full production deps are in requirements.txt / requirements-docker.txt
+# CI requirements — strictly what tests need after sys.modules stubs in conftest.py.
+# sentence-transformers, shap, qdrant-client, groq, langgraph are all stubbed
+# out via sys.modules in tests/conftest.py so they don't need to be installed.
 
 # Django core
 Django==5.1.6
@@ -10,22 +11,12 @@ python-dotenv==1.0.0
 psycopg2-binary==2.9.9
 gunicorn==21.2.0
 
-# LangGraph (lightweight — no torch dependency)
-langgraph==0.2.62
-langchain-core==0.3.28
-
-# ML (lightweight CPU inference only — no torch)
+# ML (needed for real module-level imports in ml_service/ — no native build deps)
 xgboost==2.1.3
 scikit-learn==1.5.2
 numpy==1.26.4
 pandas==2.2.3
-shap==0.45.1
 joblib==1.4.2
-
-# GenAI / RAG clients (API clients only, not model weights)
-groq==0.11.0
-qdrant-client==1.12.1
-sentence-transformers==3.3.1
 
 # Utils
 requests==2.32.3
