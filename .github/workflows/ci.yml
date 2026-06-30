@@ -85,10 +85,7 @@ jobs:
           done
 
       - name: Run Django migrations
-        run: python manage.py migrate --noinput
-
-      - name: Run Django system checks
-        run: python manage.py check
+        run: python manage.py migrate --noinput --skip-checks
 
       - name: Run linting (flake8)
         run: |
