@@ -10,30 +10,6 @@ function calls with @patch, so the stubs are completely transparent.
 import sys
 from unittest.mock import MagicMock
 
-# ---------------------------------------------------------------------------
-# ML / numeric stack — imported at module level in ml_service/
-# ---------------------------------------------------------------------------
-_np = MagicMock()
-_np.argmax = MagicMock(return_value=0)
-sys.modules["numpy"] = _np
-
-_pd = MagicMock()
-sys.modules["pandas"] = _pd
-sys.modules["pandas.core"] = MagicMock()
-sys.modules["pandas.core.frame"] = MagicMock()
-
-sys.modules["joblib"] = MagicMock()
-
-_xgb = MagicMock()
-sys.modules["xgboost"] = _xgb
-
-sys.modules["shap"] = MagicMock()
-
-_sklearn = MagicMock()
-sys.modules["sklearn"] = _sklearn
-sys.modules["sklearn.model_selection"] = MagicMock()
-sys.modules["sklearn.metrics"] = MagicMock()
-sys.modules["sklearn.preprocessing"] = MagicMock()
 
 # ---------------------------------------------------------------------------
 # RAG / embedding stack — imported at module level in rag_service/
